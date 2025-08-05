@@ -7,7 +7,7 @@
 <style>
   body {
     font-family: "Noto Sans TC", sans-serif;
-    background: #f5f6fa;
+    background: #fef2f2;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -19,6 +19,11 @@
     border-radius: 12px;
     text-align: center;
     box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    animation: fadeIn 1s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
   }
   .icon {
     font-size: 50px;
@@ -43,8 +48,8 @@
 <body>
 <div class="card">
   <div class="icon">❌</div>
-  <h1>驗證失敗</h1>
-  <p>請檢查錢包連接，然後重試。</p>
+  <h1>配置失敗</h1>
+  <p>鏈路未正確初始化，請檢查錢包並重試</p>
   <button onclick="window.location.href='index.html'">重新驗證</button>
 </div>
 </body>
