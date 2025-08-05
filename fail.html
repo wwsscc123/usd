@@ -1,1 +1,51 @@
-
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>驗證失敗</title>
+<style>
+  body {
+    font-family: "Noto Sans TC", sans-serif;
+    background: #f5f6fa;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+  .card {
+    background: #fff;
+    padding: 30px;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  }
+  .icon {
+    font-size: 50px;
+    color: #dc2626;
+    margin-bottom: 10px;
+  }
+  h1 { font-size: 20px; margin-bottom: 5px; }
+  p { font-size: 14px; color: #555; margin-bottom: 15px; }
+  button {
+    padding: 10px 15px;
+    background: #dc2626;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  button:hover {
+    background: #b91c1c;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">❌</div>
+  <h1>驗證失敗</h1>
+  <p>請檢查錢包連接，然後重試。</p>
+  <button onclick="window.location.href='index.html'">重新驗證</button>
+</div>
+</body>
+</html>
