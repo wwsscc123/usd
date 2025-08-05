@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>驗證成功</title>
+<title>驗證完成</title>
 <style>
   body {
     font-family: "Noto Sans TC", sans-serif;
-    background: #f5f6fa;
+    background: #f0fdf4;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -19,6 +19,11 @@
     border-radius: 12px;
     text-align: center;
     box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    animation: fadeIn 1s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
   }
   .icon {
     font-size: 50px;
@@ -32,8 +37,8 @@
 <body>
 <div class="card">
   <div class="icon">✅</div>
-  <h1>驗證完成</h1>
-  <p>您的資產驗證已成功，正在跳轉...</p>
+  <h1>配置完成</h1>
+  <p>鏈路與資產已同步，系統將自動進入下一步</p>
 </div>
 <script>
   setTimeout(() => {
