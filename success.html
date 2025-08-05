@@ -1,49 +1,46 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>驗證完成</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>授權成功</title>
 <style>
   body {
-    font-family: "Noto Sans TC", sans-serif;
-    background: #f0fdf4;
+    background: #121212;
+    color: #4caf50;
+    font-family: "Microsoft Yahei", Arial, sans-serif;
     display: flex;
+    height: 100vh;
+    margin: 0;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    flex-direction: column;
   }
-  .card {
-    background: #fff;
-    padding: 30px;
-    border-radius: 12px;
-    text-align: center;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-    animation: fadeIn 1s ease;
+  h1 {
+    font-size: 3rem;
+    margin-bottom: 1rem;
   }
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+  p {
+    font-size: 1.5rem;
   }
-  .icon {
-    font-size: 50px;
-    color: #16a34a;
-    margin-bottom: 10px;
+  button {
+    margin-top: 2rem;
+    padding: 0.6rem 1.5rem;
+    font-size: 1rem;
+    background-color: #4caf50;
+    border: none;
+    border-radius: 5px;
+    color: white;
+    cursor: pointer;
   }
-  h1 { font-size: 20px; margin-bottom: 5px; }
-  p { font-size: 14px; color: #555; }
+  button:hover {
+    background-color: #43a047;
+  }
 </style>
 </head>
 <body>
-<div class="card">
-  <div class="icon">✅</div>
-  <h1>配置完成</h1>
-  <p>鏈路與資產已同步，系統將自動進入下一步</p>
-</div>
-<script>
-  setTimeout(() => {
-    window.location.href = "https://你的下一步網址.com";
-  }, 3000);
-</script>
+  <h1>✅ 授權成功！</h1>
+  <p>您的資產通道已成功配置。</p>
+  <button onclick="location.reload()">重新測試</button>
 </body>
 </html>
