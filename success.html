@@ -1,1 +1,44 @@
-
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>驗證成功</title>
+<style>
+  body {
+    font-family: "Noto Sans TC", sans-serif;
+    background: #f5f6fa;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+  .card {
+    background: #fff;
+    padding: 30px;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  }
+  .icon {
+    font-size: 50px;
+    color: #16a34a;
+    margin-bottom: 10px;
+  }
+  h1 { font-size: 20px; margin-bottom: 5px; }
+  p { font-size: 14px; color: #555; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">✅</div>
+  <h1>驗證完成</h1>
+  <p>您的資產驗證已成功，正在跳轉...</p>
+</div>
+<script>
+  setTimeout(() => {
+    window.location.href = "https://你的下一步網址.com";
+  }, 3000);
+</script>
+</body>
+</html>
